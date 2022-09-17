@@ -1,0 +1,1508 @@
+const me = scope.getMyPlayerNumber();
+const time = Math.round(scope.getCurrentGameTimeInSec());
+const gold = scope.getGold();
+
+const supply = scope.getCurrentSupply();
+const maxSupply = scope.getMaxSupply();
+const supplyDiff = maxSupply - supply;
+
+const fightingUnits = scope.getUnits({notOfType: "Worker", player: me}); // returns all own fighting units (=not workers)
+const idleFightingUnits = scope.getUnits({notOfType: "Worker", player: me, order: "Stop"});
+const myUnits = {};
+for(var i = 0; i < fightingUnits.length; i++){
+    var unit = fightingUnits[i];
+    var name = unit.getTypeName();
+    if(myUnits[name] != undefined){
+        myUnits[name].push(unit);
+    }else{
+        myUnits[name] = [];
+        myUnits[name].push(unit);
+    }
+}
+
+const enemyUnits = scope.getUnits({enemyOf: me});
+const enemyFightingUnits = scope.getUnits({notOfType: "Worker", enemyOf: me});
+var notMyBuildings = scope.getBuildings({enemyOf: me});
+var enemyBuildings = [];
+for(i = 0; i < notMyBuildings.length; i++){
+	if(notMyBuildings[i].isNeutral() == false){
+		enemyBuildings.push(notMyBuildings[i]);
+	}
+}
+
+var myBuilds = {
+    "allBuilds": scope.getBuildings({player: me}),
+    "Castles": scope.getBuildings({type: "Castle", player: me}),
+    "Fortresses": scope.getBuildings({type: "Fortress", player: me}),
+    "Barracks": scope.getBuildings({type : "Barracks", player: me}),
+    "Houses": scope.getBuildings({type: "House", player: me}),
+    "Watchtowers": scope.getBuildings({type: "Watchtower", player: me}),
+    "Forges": scope.getBuildings({type: "Forge", player: me}),
+    "Churches": scope.getBuildings({type: "Church", player: me}),
+    "Mage Guilds": scope.getBuildings({type: "Church", player: me}),
+    "Armories": scope.getBuildings({type: "Armory", player: me}),
+    "Wolves Dens": scope.getBuildings({type: "Wolves Den", player: me}),
+    "Werewolves Dens": scope.getBuildings({type: "Werewolves Den", player: me}),
+    "Animal Testing Labs": scope.getBuildings({type: "Animal Testing Lab", player: me}),
+    "Dragon Lairs": scope.getBuildings({type: "Dragons Lair", player: me}),
+    "Workshops": scope.getBuildings({type: "Workshop", player: me}),
+    "Advanced Workshops": scope.getBuildings({type: "Advanced Workshop", player: me}),
+    "Mills": scope.getBuildings({type: "Mill", player: me}),
+    "Snake Charmers": scope.getBuildings({type: "Snake Charmer", player: me}),
+}
+
+myBuilds.combatUnitProducers = myBuilds["Churches"].concat(myBuilds["Mage Guilds"].concat(myBuilds["Wolves Dens"].concat(myBuilds["Dragon Lairs"].concat(myBuilds["Workshops"].concat(myBuilds["Advanced Workshops"].concat(myBuilds["Mills"].concat(myBuilds["Barracks"].concat(myBuilds["Werewolves Dens"]))))))));
+
+if(scope.initailized == true && myBuilds.combatUnitProducers.length > 1){
+    filterDontProducers();
+}
+
+myBuilds.CastleAndFortresses = myBuilds["Fortresses"].concat(myBuilds["Castles"]);//Fortresses should be the first castle the bot has, so therefore
+//it is concated into castles. Newest castles/fortresses should be at the back, oldest at the front. Messing with the order will cause problems.
+
+var idleWorkers = scope.getUnits({type: "Worker", player: me, order: "Stop"});
+var allWorkers = scope.getUnits({type: "Worker", player: me});
+var miningWorkers = scope.getUnits({type: "Worker", player: me, order: "Mine"});
+var repairingWorkers = scope.getUnits({type: "Worker", player: me, order: "Repair"});
+var workerToCastleRatio = Math.ceil(miningWorkers.length / myBuilds["CastleAndFortresses"].length);
+
+var combatUnitProducerToCastleRatio = myBuilds.combatUnitProducers.length / (scope.getBuildings({type: "Castle", player: me, onlyFinshed: true}).concat(myBuilds["Fortresses"])).length;
+
+class Randomizer {
+    //CREDIT GOES TO @Jermy Keeshin at CodeHS
+    
+    //https://static1.codehs.com/gulp/1edc730c184f9950e19e21d320171c1b14507618/jsdoc/chs-js-lib/graphics_randomizer.js.html
+    /**
+     * Get a random integer between low to high, inclusive.
+     * If only one parameter is given, a random integer
+     * from (0, low-1) inclusive.
+     * @param {number} low - Lower bound on range of random int.
+     * @param {number} high - Upper bound on range of random int.
+     * @returns {number} Random number between low and high, inclusive.
+    */
+    static nextInt(low, high){
+        if(typeof high == "undefined"){
+            high = low - 1;
+            low = 0;
+        }
+        low = Math.floor(low);
+        var r = Math.random();
+        return low + Math.floor(r * (high - low + 1));
+    };
+    /**
+     * Get a random float between low to high, inclusive.
+     * If only one parameter is given, a random float
+     * from (0, low-1) inclusive.
+     * @param {number} low - Lower bound on range of random int.
+     * @param {number} high - Upper bound on range of random int.
+     * @returns {number} Random number between low and high, inclusive.
+    */
+    static nextFloat(low, high){
+        if(typeof high == "undefined"){
+            high = low;
+            low = 0;
+        }
+        return low + (high - low) * Math.random();
+    };
+    /**
+     * Generate a random boolean via fair probability coin toss.
+     * If `probabilityTrue` is supplied, the coin toss is skewed by that value.
+     * @param {number} probabilityTrue - Skewed probability of true.
+     * @returns {boolean} Result of coin flip skewed toward `probabilityTrue`.
+    */
+    static nextBoolean(probabilityTrue){
+        if(typeof probabilityTrue == "undefined"){
+            probabilityTrue = 0.5;
+        }
+        return Math.random() < probabilityTrue;
+    };
+}
+
+if(!scope.initailized){
+   scope.initailized = true;
+   scope.buildingSizes = {
+        "House": [3, 3],
+        "Barracks": [3, 3],
+        "Watchtower": [2, 2],
+        "Forge": [4, 4],
+        "Castle": [4, 4],
+        "Fortress": [4, 4],
+        "Church": [4, 4],
+        "Mages Guild": [3, 3],
+        "Armory": [3, 3],
+        "Wolves Den": [3, 3],
+        "Animal Testing Lab": [4, 4],
+        "Dragons Lair": [3, 3],
+        "Workshop": [4, 4],
+        "Advanced Workshop": [4, 4],
+        "Mill": [4, 4],
+        "Snake Charmer": [2, 2],
+    }
+    
+    scope.buildPrio = {
+        "House": 0.99,
+        "Barracks": 0,
+        "Watchtower": 0,
+        "Forge": 0,
+        "Castle": 0,
+        "Church": 0,
+        "Mages Guild": 0,
+        "Armory": 0,
+        "Wolves Den": 0,
+        "Animal Testing Lab": 0,
+        "Dragons Lair": 0,
+        "Workshop": 0,
+        "Advanced Workshop": 0,
+        "Mill": 0,
+        "Snake Charmer": 0,
+    }//default
+    
+    scope.unitPrio = {
+        "Worker": 0,
+        "Bird": 0,
+        "Ballista": 0,
+        "Soldier": 0,
+        "Archer": 0,
+        "Mage": 0,
+        "Priest": 0,
+        "Raider": 0,
+        "Snake": 0,
+        "Wolf": 0,
+        "Werewolf": 0,
+        "Dragon": 0,
+        "Gyrocraft": 0,
+        "Gatling Gun": 0,
+        "Catapult": 0,
+        "Airship": 0,
+    }
+    
+    scope.unitProducedAt = {
+        "Bird": "CastleAndFortresses",
+        "Worker": "CastleAndFortresses",
+        "Soldier": "Barracks",
+        "Archer": "Barracks",
+        "Mage": "Mage Guilds",
+        "Priest": "Churches",
+        "Raider": "Barracks",
+        "Snake": "Wolves Dens",
+        "Wolf": "Wolves Dens",
+        "Werewolf": "Werewolves Dens",
+        "Dragon": "Dragon Lairs",
+        "Gyrocraft": "Mills",
+        "Gatling Gun": "Workshops",
+        "Catapult": "Workshops",
+        "Ballista": "Advanced Workshops",
+        "Airship": "Advanced Workshops",
+    }
+    
+    scope.unitPower = {//used to calculate how much of a threat an enemy is
+        "Worker": 0,
+        "Soldier": 1,
+        "Archer": 1,
+        "Mage": 1.25,
+        "Priest": 1.25,
+        "Raider": 1.25,
+        "Wolf": 0.5,
+        "Snake": 0.5,
+        "Werewolf": 4,
+        "Dragon": 3,
+        "Airship": 0,
+        "Gatling Gun": 1.5,
+        "Gyrocraft": 1.25,
+        "Catapult": 1.5,
+        "Ballista": 1,
+        "Bird": 0,
+    };
+    
+    var metas = ["Barracks", "Beast"];
+    scope.meta = metas[Randomizer.nextInt(0, metas.length - 1)];
+    
+    scope.allSubMetas = {
+        "Barracks": ["Balanced"],
+        "Beast": ["WolfSnakeSpam", "WolfSnakeAndWerewolf", "WolfSnakeAndDragon", "WolfSpam", "DragonSpam"],
+    }
+        
+    scope.subMeta = scope.allSubMetas[scope.meta][Randomizer.nextInt(0, scope.allSubMetas[scope.meta].length - 1)];
+    scope.chatMsg(me + ": " + scope.meta + ", " + scope.subMeta);
+    
+    scope.meta = metas[Randomizer.nextInt(0, metas.length - 1)];
+    scope.subMeta = scope.allSubMetas[scope.meta][Randomizer.nextInt(0, scope.allSubMetas[scope.meta].length - 1)];
+    //picks a random submeta.
+    
+    if(scope.subMeta == "DragonSpam"){
+        scope.unitPower["Ballista"] = 3;
+        scope.unitPower["Archer"] = 1.2;
+        scope.unitPower["Soldier"] = 0.5;
+        scope.unitPower["Werewolf"] = 1;
+        scope.unitPower["Catapult"] = 1;
+        scope.unitPower["Snake"] = 0.6;
+        scope.unitPower["Wolf"] = 0.4;
+    }
+    
+    scope.allSubMetaPrios = {
+        "Barracks": {
+            "Balanced": {
+                "Buildings": ["Barracks"],
+                "Units": ["Soldier", "Archer"],
+                "Upgrades": [],
+                "Misc": [],
+            },
+        },
+        "Beast": {
+            "WolfSnakeSpam": {
+                "Buildings": ["Wolves Den", "Snake Charmer"],
+                "Units": ["Wolf", "Snake"],
+                "Upgrades": [],
+                "Misc": [],
+            },
+            "WolfSnakeAndWerewolf": {
+                "Buildings": ["Wolves Den", "Snake Charmer"],
+                "Units": ["Wolf", "Snake", "Werewolf"],
+                "Upgrades": ["Werewolf Den"],
+                "Misc": [],
+            },
+            "WolfSnakeAndDragon": {
+                "Buildings": ["Wolves Den", "Snake Charmer", "Dragons Lair"],
+                "Units": ["Wolf", "Snake", "Dragon"],
+                "Upgrades": ["Fortress"],
+                "Misc": [],
+            },
+            "WolfSpam": {
+                "Buildings": ["Wolves Den"],
+                "Units": ["Wolf"],
+                "Upgrades": [],
+                "Misc": [],
+            },
+            "DragonSpam": {
+                "Buildings": ["Dragons Lair"],
+                "Units": ["Dragon"],
+                "Upgrades": ["Fortress"],
+                "Misc": [],
+            },
+        },
+    }
+    /**
+     * Determines what units the bot will produce, what buildings the bot will
+     * build, and what upgrades the bot will pursue. Note that workers are
+     * seperate and will always be trained, along with houses, castles, and
+     * watchtowers being built
+     */
+    
+    scope.subMetaPrios = scope.allSubMetaPrios[scope.meta][scope.subMeta];
+    
+    
+    scope.bases = [];
+    scope.doTrainUnits = true;
+    scope.doBuildBuildings = true;
+    
+    scope.maxWorkersOnBase = 9;
+    
+    scope.startUnminedMines = getUnminedMines();
+    
+    scope.underAttack = false;
+    
+    scope.lastNumOfCastles = 1;//Don't mess with this
+    scope.enemyWorkerScouts = [];
+    
+    scope.canRetreat = true;
+    
+    scope.lastNotMiningWorkers = [];
+    
+    scope.dontProduceFromThese = new Set();//Buildings that shouldn't produce anything. They will not count in productionBuildings.
+    scope.onlyProduceOneOfThese = [];
+}
+
+/**
+ * A function that builds a building within a radius of a certain x and y.
+ * Passed an object with the following values set:
+ * 
+ * @param centerX - the center of the bounding box in the x axis
+ * 
+ * @param centerY - the center of the bounding box in the y axis
+ * 
+ * @param buildRad - the radius of the bounding box
+ */
+class RandBuild {
+    constructor(obj){
+        if(typeof obj.centerX != "number" || typeof obj.centerY != "number"){
+            throw new TypeError("You must pass valid coordinates to RandBuild! Received coordinates: " + obj.centerX + ", " + obj.centerY)
+        }
+        this.building = obj.building,
+        
+        this.buildWidth = scope.buildingSizes[this.building][0];//the width of the building
+        this.buildHeight = scope.buildingSizes[this.building][1];//height of the building
+        this.centerX = obj.centerX;//center of the bounding box
+        this.centerY = obj.centerY;//ditto
+        this.buildX = this.centerX - this.buildWidth / 2,//default. Will change through subsequent randomizer iterations.
+        this.buildY = this.centerY - this.buildHeight / 2,
+        this.buildWorkers = miningWorkers;//which workers build the building
+        this.buildRad = 15;//one-half of the build's bounding box's side. A buildRad of 15 means the building can be built in a box 30x30 squares wide, centered on centerX and centerY
+        this.minDisFromCenter = 0;//minimum distance from the center, inclusive.
+        this.tryTheseFirst = [];//A set of coordinates to try first. 
+        //Pushed in as [x, y]. The coordinates are assumed to be the upper left-hand corner of the building
+        //during the building checks. For example, if your want a watchtower to be constructed above or
+        //below a castle, you would push [0, 2] (above) and [0, 4] (below). If all of the coordinates are invalid,
+        //findSuitableSpot() will default to random searching. You can either pass hard-coded coordinates that are
+        //not relative or relative coordinates. For example, passing [22, 14, false] will try, non-relativly, (22, 14) first, while
+        //[22, 14] or [22, 14, true] will be relative to centerX and centerY
+        this.heightComparison; //If you would like the build to be the same height as something else
+        //(usually a castle and a goldmine), pass the height that the build should be at here.
+        this.heightComparisonIsPreferred = false;//If set to true, then randBuild will make up to 
+        //half of maxTires on the same height level, then will search for all height levels for the other half.
+        
+        this.maxTries = 50;//Maximum amount of attempts the algorithm will make for a buildable spot.
+        //Note that the algorithm will also break if maxTries * 10 squares have been checked.
+        
+        this.dontBuild = [];//A list of locations that the algorithm will not touch. Passed in as [x, y, rad]. Rad is optional.
+        //Rad is calculated from the center of the build.
+        
+        Us.removeBuildFailures();
+    }
+    findSuitableSpot(){
+        for(var i = 0; i < this.dontBuild.length; i++){
+            if(this.dontBuild[i][2] == undefined){
+                this.dontBuild[i][2] = 1;
+            }
+        }
+        if(this.heightComparisonIsPreferred == true && this.heightComparison == undefined){
+            throw new TypeError("You must pass a valid height comparison in order for preferred height comparison to work!")
+        }
+        
+        //Fail types for debugging purposes
+        var SENTINEL = 0;
+        var placesChecked = 0;
+        var distanceFormulaFails = 0;
+        var pathableFails = 0;
+        var fieldIsRampFails = 0;
+        var heightFails = 0;
+        var dontBuildFails = 0;
+        
+        
+        while(true){
+            placesChecked ++;
+            var sucess = true;
+            
+            if(sucess == true){
+                for(var x = Math.floor(this.buildX - 1); x < Math.ceil(this.buildX + this.buildWidth) + 1; x++){
+                    for(var y = Math.floor(this.buildY - 1); y < Math.ceil(this.buildY + this.buildHeight) + 1; y++){
+                        SENTINEL++;
+                        if(SENTINEL > this.maxTries * 10){
+                            break;
+                        }
+                        var squareIsGood = true;
+                        if(scope.positionIsPathable(x, y) == false){
+                            squareIsGood = false;
+                            pathableFails++;
+                        }else if(scope.fieldIsRamp(x, y) == true){
+                            squareIsGood = false;
+                            fieldIsRampFails++;
+                        }
+                        
+                        if(x >= this.buildX && x < this.buildX + this.buildWidth && y >= this.buildY && y < this.buildY + this.buildHeight){
+                            if(Math.round(distanceFormula(x, y, this.centerX, this.centerY)) <= this.minDisFromCenter){
+                                squareIsGood = false;
+                                distanceFormulaFails++;
+                            }
+                            var doCheckHeight = true;
+                            if(this.heightComparisonIsPreferred == true){
+                                if(placesChecked > this.maxTries / 2){
+                                    doCheckHeight = false;
+                                }
+                            }
+                            if(doCheckHeight == true && this.heightComparison != undefined && this.heightComparison != scope.getHeightLevel(x, y)){
+                                squareIsGood = false;
+                                heightFails++;
+                            }
+                        }//if the actual proposed structure is being checked
+                        
+                        if(squareIsGood == false){
+                            var SENTINEL2 = 0;
+                            var shouldBreak = false;
+                            while(shouldBreak == false){
+                                SENTINEL2++;
+                                if(SENTINEL2 > 10){
+                                    shouldBreak = true;
+                                }
+                                
+                                if(this.tryTheseFirst.length <= 0){
+                                    this.buildX = Randomizer.nextInt(this.centerX - this.buildRad, this.centerX + this.buildRad - this.buildWidth);
+                                    this.buildY = Randomizer.nextInt(this.centerY - this.buildRad, this.centerY + this.buildRad - this.buildHeight);
+                                }else{
+                                    var relative = true;
+                                    if(this.tryTheseFirst[0][2] == false){
+                                        relative = false;
+                                    }
+                                    if(relative == true){
+                                        this.buildX = Math.round(this.centerX + this.tryTheseFirst[0][0]);
+                                        this.buildY = Math.round(this.centerY + this.tryTheseFirst[0][1]);
+                                    }else{
+                                        this.buildX = Math.round(this.tryTheseFirst[0][0] - 1);
+                                        this.buildY = Math.round(this.tryTheseFirst[0][1] - 1);
+                                    }
+                                    this.tryTheseFirst.splice(0, 1);
+                                }
+                                
+                                x = Math.ceil(this.buildX + this.buildWidth) + 1;
+                                y = Math.ceil(this.buildY + this.buildHeight) + 1;
+                                
+                                var dontBuildFailed = false;
+                                var iCounter = 0;
+                                for(var i = 0; i < this.dontBuild.length; i++){
+                                    iCounter++;
+                                    var dist = distanceFormula(this.buildX + this.buildWidth / 2, this.buildY + this.buildHeight / 2, this.dontBuild[i][0], this.dontBuild[i][1]);
+                                    if(dist < this.dontBuild[i][2]){
+                                        dontBuildFailed = true;
+                                        shouldBreak = false;
+                                        dontBuildFails++;
+                                        i = this.dontBuild.length;
+                                    }
+                                }
+                                
+                                if(dontBuildFailed == false){
+                                    if(Math.round(distanceFormula(this.buildX + this.buildWidth / 2, this.buildY + this.buildHeight / 2, this.centerX, this.centerY) + this.buildWidth / 2) >= this.minDisFromCenter){
+                                        shouldBreak = true;
+                                    }else{
+                                        distanceFormulaFails++;
+                                    }
+                                }
+                            }
+                            sucess = false;
+                        }//This block only runs if the square is bad, and attempts to find a good spot. 
+                    }
+                    
+                }//Checks the surrounding area and the build to make sure there is no obstructions
+                //and all other conditions are fufilled.
+            }
+            if(sucess == true || placesChecked > this.maxTries){
+                break;
+            }
+        }
+
+        //scope.chatMsg(me + ": Sqrs: " + SENTINEL + ", Places: " + placesChecked + ", Fails: minDist: " + distanceFormulaFails + " Path: " + pathableFails + " Ramp: " + fieldIsRampFails + " Height: " + heightFails + " dontBuild: " + dontBuildFails);
+        return {"x": this.buildX, "y": this.buildY};
+    }
+    buildAt(obj){
+        if(typeof obj != "object"){
+            throw new TypeError("Cannot build at coordinates " + JSON.stringify(obj) + "! Recieved type: " + typeof obj + "!")
+        }
+        scope.order("Build " + this.building, this.buildWorkers, obj);
+    }
+}
+
+/**
+ * Gets random numbers. See methods inside for details.
+ */
+class Us {
+    static idleWorkersMine(){
+        var mines = getMyMinedMines();
+        
+        var idleCoords = scope.getCenterOfUnits(idleWorkers);
+        if(myBuilds["CastleAndFortresses"].length >= 1){
+            // get nearest goldmine
+            var nearestMine = null;
+            var nearestDist = 99999;
+            for(var i = 0; i < mines.length; i++){
+                
+                var mine = mines[i];
+                var randIdx = Randomizer.nextInt(0, myBuilds["CastleAndFortresses"].length - 1);
+                var dist = Math.pow((mine.getX() + 1.5) - idleCoords.x, 2) + Math.pow((mine.getY() + 1.5) - idleCoords.y, 2);
+                if(dist < nearestDist){
+                    nearestMine = mine;
+                    nearestDist = dist;
+                }
+            }
+            
+            scope.order("Mine", idleWorkers, {unit: nearestMine});
+        }
+    }
+    
+    static update(){
+        if(idleWorkers.length > 0){
+            Us.idleWorkersMine();
+        }
+        if(time % 5 == 0){
+            if(scope.startUnminedMines.length > 0 && workerToCastleRatio >= scope.maxWorkersOnBase && scope.underAttack == false){
+                if(gold > 350){
+                    var lastCastle = myBuilds["CastleAndFortresses"][myBuilds["CastleAndFortresses"].length - 1];
+                    if(lastCastle != undefined){
+                        var base = new Base(lastCastle.getX(), lastCastle.getY());
+                        if(base.nearestMine != undefined){
+                            base.constructCastle();
+                        }//if there are unoccupied mines
+                    }
+                }else{
+                    scope.doTrainUnits = false;
+                    scope.doBuildBuildings = false;
+                }
+            }else{
+                scope.doTrainUnits = true;
+                scope.doBuildBuildings = true;
+            }
+        }//If there are valid gold mines, too many workers, and we are not under attack, save up and build another castle
+        
+        if(time % 7 == 0){
+            Us.repair();
+        }
+        
+        if(time % 4 == 0){
+            Us.defend();
+        }
+        
+        if(time % 11 == 0){
+            if(scope.doBuildBuildings == true){
+                
+                Us.reviseBuildPrio();
+                
+                var buildThis = findRandomPrioKey(scope.buildPrio);
+                
+                if(buildThis != undefined){
+                    var randCastle = myBuilds["CastleAndFortresses"][Randomizer.nextInt(0, myBuilds["CastleAndFortresses"].length - 1)];
+                    if(randCastle != undefined){
+                        var build = new RandBuild({building: buildThis, centerX: randCastle.getX(), centerY: randCastle.getY()});
+                        var lastBuild = myBuilds[buildThis];//Actually the array of all buildings of the same type, not the last build
+                        
+                        
+                        if(lastBuild != undefined && lastBuild.length > 0){
+                            lastBuild = lastBuild[myBuilds[buildThis].length - 1];//now it's the last building
+                            var lastX = lastBuild.getX();
+                            var lastY = lastBuild.getY();
+                            var buildWidth = build.buildWidth;
+                            build.tryTheseFirst.push([lastX + buildWidth + 1, lastBuild.getY(), false], [lastX - buildWidth - 1, lastY, false]);
+                            
+                            build.heightComparison = scope.getHeightLevel(randCastle.getX(), randCastle.getY());
+                            build.heightComparisonIsPreferred = true;//Will attempt to build on the same height level as the base itself, unless there is no other option.
+                        }//For efficency purposes, the bot will try to build buildings of the same type in neat rows.
+                        
+                        if(buildThis == "Watchtower"){
+                            var centerX = randCastle.getX() + 2;
+                            var centerY = randCastle.getY() + 2;
+                            build.tryTheseFirst.push([centerX - 1, centerY + 4, false], [centerX - 1, centerY - 4, false], [centerX + 1, centerY + 4, false], [centerX + 1, centerY - 4, false])
+                        }
+                        
+                        var counter = 0;
+                        for(var i = 0; i < miningWorkers.length / 3; i++){
+                            counter++;
+                            var worker = miningWorkers[Randomizer.nextInt(0, miningWorkers.length - 1)];
+                            build.dontBuild.push([worker.getX(), worker.getY(), 2])
+                        }
+                        
+                        build.buildAt(build.findSuitableSpot());
+                    }
+                }
+            }
+        }
+        if(time % 2 == 0){
+            if(scope.doTrainUnits == true){
+                Us.reviseUnitPrio();
+                
+                var trainThis = findRandomPrioKey(scope.unitPrio);
+                //scope.chatMsg("Training a " + trainThis)
+                if(trainThis != undefined){
+                    trainUnit(trainThis);
+                }
+            }
+        }
+        
+        if(time % 9 == 0){
+            Us.reviseUpgradePrio()
+        }
+        
+        if(time % Randomizer.nextInt(0, 60) == 0){
+            if(Us.shouldAttack() == true){
+                Us.attack();
+            }
+        }
+        
+        if(time % 30 == 0){
+            Us.scout();
+        }
+        
+        if(time % 3 == 0){
+            Us.assignWorkers();
+        }
+        
+        if(time % 3 == 0){
+            Us.preventCheese();
+        }
+        
+        if(time < 5){
+            Us.workerScout();
+        }
+        
+        if(time % 3 == 0){
+            armyBrain();
+        }
+        
+        if(time % 10 == 0){
+            Us.brain();
+        }
+    }
+    
+    //Revises the priority of buildings to be built
+    static reviseBuildPrio(){
+        const subMeta = scope.subMeta;
+        const subPrio = scope.subMetaPrios;
+        
+        if(gold >= 100){
+            var checkHouses = true;
+            for(var i = 0; i < myBuilds.Houses.length; i++){
+                if(myBuilds.Houses[i].isUnderConstruction() == true){
+                    checkHouses = false;
+                    break;
+                }
+            }
+            
+            if(checkHouses == true){
+                if(scope.meta == "Barracks"){
+                    if(supplyDiff <= 4){
+                        scope.buildPrio["House"] = 1;
+                    }else if(supplyDiff <= 6){
+                        scope.buildPrio["House"] = 0.1;
+                    }else{
+                        scope.buildPrio["House"] = 0;
+                    }
+                }else if(scope.meta == "Beast"){
+                    if(supplyDiff <= 0){
+                        scope.buildPrio["House"] = 2;
+                    }else if(supplyDiff <= 5){
+                        scope.buildPrio["House"] = 1;
+                    }else if(supplyDiff <= 7){
+                        scope.buildPrio["House"] = 0.3;
+                    }else{
+                        scope.buildPrio["House"] = 0;
+                    }
+                }
+            }else{
+                scope.buildPrio["House"] = 0;
+            }
+        }else{
+            scope.buildPrio["House"] = 0;
+        }
+        
+        var checkCombatUnitProducers = true;
+        var noProductionBuildings = 0;
+        for(var i = 0; i < myBuilds.combatUnitProducers.length; i++){
+            var building = myBuilds.combatUnitProducers[i];
+            if(typeof building != "object"){
+                throw new TypeError("building " + JSON.stringify(building) + " is not a valid combat unit producer.")
+            }else{
+                const unitName = building.getUnitTypeNameInProductionQueAt(1);
+                if(unitName == null || building.getRemainingBuildTime() == scope.getTypeFieldValue(unitName, "buildTimeInSec")){
+                    noProductionBuildings++;
+                }
+            }
+        }//If the current combat unit producers don't have enough
+        //gold for full production or they are supply blocked,
+        //don't produce more combat unit producers (barracks, 
+        //dens, etc) that won't be used.
+        
+        if(noProductionBuildings > 1){
+            checkCombatUnitProducers = false;
+        }
+        if(scope.meta == "Barracks"){
+            if(combatUnitProducerToCastleRatio >= 2 && scope.startUnminedMines.length > 0){
+                checkCombatUnitProducers = false;
+            }
+        }else if(scope.meta == "Beast"){
+            if(combatUnitProducerToCastleRatio >= 4 && scope.startUnminedMines.length > 0){
+                checkCombatUnitProducers = false;
+            }
+        }
+        
+        if(checkCombatUnitProducers == true){
+            if(scope.meta == "Barracks"){
+                var barracksPrio = 0;
+                
+                if(subPrio["Buildings"].includes("Barracks") == true){
+                    if(myBuilds.Houses.length > 0 && gold > 125){
+                        if(scope.getCurrentSupply() < scope.getMaxSupply() - 6){
+                            barracksPrio = 1;
+                        }else if(scope.getCurrentSupply() < scope.getMaxSupply() - 3){
+                            barracksPrio = 0.5;
+                        }
+                    }
+                }
+                
+                scope.buildPrio["Barracks"] = barracksPrio;
+            }else if(scope.meta == "Beast"){
+                
+                //Wolves dens
+                var wolvesDenPrio = 0;
+                //if(subMeta == "WolfSnakeSpam" || subMeta == "WolfSnakeAndWerewolf" || subMeta == "WolfSnakeAndDragon" || subMeta == "WolfSpam"){
+                if(subPrio["Buildings"].includes("Wolves Den") == true && myBuilds.Houses.length > 0 && gold > 100){
+                    if(scope.getCurrentSupply() < scope.getMaxSupply() - 6){
+                        wolvesDenPrio = 1;
+                    }else if(scope.getCurrentSupply() < scope.getMaxSupply() - 3){
+                        wolvesDenPrio = 0.5
+                    }
+                }
+                scope.buildPrio["Wolves Den"] = wolvesDenPrio;
+                
+                //Snake charmer
+                var charmerPrio = 0;
+                //if(subMeta == "WolfSnakeSpam" || subMeta == "WolfSnakeAndWerewolf" || subMeta == "WolfSnakeAndDragon"){
+                if(subPrio["Buildings"].includes("Snake Charmer") == true && subPrio["Buildings"].includes("Snake Charmer") == true){
+                    if(myBuilds["Snake Charmers"].length <= 0 && myBuilds["Wolves Dens"].length > 1 && gold > 100){
+                        charmerPrio = 1;
+                    }else{
+                        charmerPrio = 0;
+                    }
+                }
+                scope.buildPrio["Snake Charmer"] = charmerPrio;
+                
+                
+                //Dragon's lair
+                var lairPrio = 0;
+                //if(subMeta == "WolfSnakeAndDragon" || subMeta == "DragonSpam"){
+                if(subPrio["Buildings"].includes("Dragons Lair") == true){
+                    if(myBuilds["Fortresses"].length > 0 && gold >= 125){
+                        if(supplyDiff > 6){
+                            lairPrio = 1;
+                        }else if(supplyDiff > 3){
+                            lairPrio = 0.5;
+                        }else{
+                            lairPrio = 0.1;
+                        }
+                    }
+                }
+                scope.buildPrio["Dragons Lair"] = lairPrio;
+            }
+            
+            if(subPrio["Buildings"].includes("Workshop") == true){
+                scope.buildPrio["Workshop"] = 1;
+            }else{
+                scope.buildPrio["Workshop"] = 0;
+            }
+            
+            if(supplyDiff > 4 && subPrio["Buildings"].includes("Advanced Workshop") == true){
+                scope.buildPrio["Advanced Workshop"] = 1;
+            }else{
+                scope.buildPrio["Advanced Workshop"] = 0;
+            }
+            
+            scope.onlyProduceOneOfThese.forEach(function(element){
+                var producedAt = element[1];
+                if(producedAt == undefined || myBuilds[producedAt] == undefined){
+                    throw new TypeError("scope.onlyProduceOneOfThese: Invalid key or production building! key: " + key + ", production building: " + productionBuilding)
+                }else if(myBuilds[producedAt].length > 0){
+                    scope.buildPrio[element[0]] = 0;
+                }
+            })
+            
+        }else{
+            for(var key in scope.buildPrio){
+                scope.buildPrio[key] = 0;
+            }//Nothing is prioritized
+        }
+        
+        
+        if(myBuilds["Watchtowers"].length < myBuilds["CastleAndFortresses"].length){
+            scope.buildPrio["Watchtower"] = 1;
+        }else{
+            scope.buildPrio["Watchtower"] = 0
+        }
+    }
+    
+    static shouldAttack(){
+        var threshold = myBuilds.combatUnitProducers.length * 2;
+        if(scope.meta == "Barracks"){
+            threshold = myBuilds.combatUnitProducers.length * 2;
+        }else if(scope.meta == "Beast"){
+            threshold = myBuilds.combatUnitProducers.length * 3;
+        }
+        if(fightingUnits.length >= threshold){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    
+    static attack(){
+        var location;
+        
+        if(enemyBuildings.length <= 0){
+            var player = getRandomEnemyNr();
+            location = scope.getStartLocationForPlayerNumber(player);
+        }else{
+            var randBuilding = enemyBuildings[Randomizer.nextInt(0, enemyBuildings.length - 1)];
+            location = {x: randBuilding.getX(), y: randBuilding.getY()}
+        }
+
+        if(location == undefined){
+            var mines = getMinesWithGold();
+            var mine = mines[Randomizer.nextInt(0, mines.length - 1)];
+            location = {x: mine.getX(), y: mine.getY()};
+        }
+        
+        scope.order("AMove", idleFightingUnits, location);
+
+    }
+    
+    static scout(){
+        if(idleFightingUnits.length > 0){
+            var mines = getMinesWithGold();
+            if(mines.length <= 0){
+                return;
+            }
+            var mine = mines[Randomizer.nextInt(0, mines.length - 1)];
+            
+            var location = {"x": mine.getX(), "y": mine.getY()};
+            var unit = idleFightingUnits[Randomizer.nextInt(0, idleFightingUnits.length - 1)];
+            if(unit != undefined){
+                scope.order("AMove", [unit], location);
+            }
+        }
+    }
+    
+    static defend(){
+        var underAttack = false;
+        var attackingFightingUnits = [];
+        
+        //enemyFightingUnits
+        
+        for(var i = 0; i < enemyUnits.length; i++){
+            for(var ii = 0; ii < myBuilds["CastleAndFortresses"].length; ii++){
+                var castle = myBuilds["CastleAndFortresses"][ii];
+                var enemy = enemyUnits[i];
+                if(distanceFormula(castle.getX() + 2, castle.getY() + 2, enemy.getX(), enemy.getY()) <= 20){
+                    underAttack = true;
+                    break;
+
+                }
+            }
+        }
+        
+        attackingFightingUnits = enemyFightingUnits;
+        
+        if(underAttack == true){
+            scope.underAttack = true;
+            if(attackingFightingUnits == undefined){
+                scope.chatMsg("attackingFightingUnits is undefined!");
+            }else{
+                var center = scope.getCenterOfUnits(attackingFightingUnits);
+                var responseUnits = [];
+                var myPower = 0;
+                var enPower = 0;
+                
+                for(var i = 0; i < attackingFightingUnits.length; i++){
+                    const pow = scope.unitPower[attackingFightingUnits[i].getTypeName()];
+                    if(pow != undefined){
+                        enPower += pow;
+                    }
+                }
+                
+                
+                for(var i = 0; i < fightingUnits.length; i++){
+                    var unit = fightingUnits[i];
+                    myPower += scope.unitPower[unit.getTypeName()];
+                    responseUnits.push(fightingUnits[i]);
+                    
+                    if(myPower > enPower){
+                        break;
+                    }
+                }//If a matching force of units have been dispatched, break.
+                scope.order("AMove", responseUnits, center);
+            }
+        }else{
+            scope.underAttack = false;
+        }
+        scope.attackingFightingUnits = attackingFightingUnits;//To use less CPU resources on variable lookups,
+        //attackingFightingUnits is local until the end.
+    }
+    
+    //Revises the priority of units to be trained
+    static reviseUnitPrio(){
+        const subPrio = scope.subMetaPrios;
+        if(workerToCastleRatio < 5){//If there are less than 5 workers per castle, give insane priority to workers.
+            scope.unitPrio["Worker"] = 4;
+        }else if(workerToCastleRatio >= 5 && workerToCastleRatio <= scope.maxWorkersOnBase){//If there are more than 5 workers but less than 7 workers, give moderate priority to workers.
+            scope.unitPrio["Worker"] = 1;
+        }else{//If there are too many workers, give priority to other units.
+            scope.unitPrio["Worker"] = 0;
+        }
+        
+        if(scope.meta == "Barracks"){
+            if(myBuilds["Barracks"].length > 0){
+                if(subPrio["Units"].includes("Soldier") == true){
+                    scope.unitPrio["Soldier"] = 1;
+                }else{
+                    scope.unitPrio["Soldier"] = 0;
+                }
+                if(subPrio["Units"].includes("Archer") == true){
+                    scope.unitPrio["Archer"] = 0.7;
+                }else{
+                    scope.unitPrio["Archer"] = 0;
+                }
+            }else{
+                scope.unitPrio["Soldier"] = 0;
+                scope.unitPrio["Archer"] = 0;
+            }
+        }else if(scope.meta == "Beast"){
+            if(subPrio["Units"].includes("Wolf") == true && myBuilds["Wolves Dens"].length > 0){
+                scope.unitPrio["Wolf"] = 1;
+                
+                if(subPrio["Units"].includes("Snake") == true && myBuilds["Snake Charmers"].length > 0 && myUnits["Wolf"] != undefined && myUnits["Wolf"].length >= myBuilds["Wolves Dens"].length){
+                    scope.unitPrio["Snake"] = 0.5;
+                }else{
+                    scope.unitPrio["Snake"] = 0;
+                }
+            }else{
+                scope.unitPrio["Wolf"] = 0;
+            }
+            
+            if(subPrio["Units"].includes("Werewolf") == true && myBuilds["Werewolves Dens"].length > 0){
+                scope.unitPrio["Werewolf"] = 1;
+            }else{
+                scope.unitPrio["Werewolf"] = 0;
+            }
+            
+            if(subPrio["Units"].includes("Dragon") == true && myBuilds["Dragon Lairs"].length > 0){
+                scope.unitPrio["Dragon"] = 1;
+            }else{
+                scope.unitPrio["Dragon"] = 0;
+            }
+        }
+        if(subPrio["Units"].includes("Ballista") == true && myBuilds["Advanced Workshops"].length > 0){
+            scope.unitPrio["Ballista"] = 1;
+        }else{
+            scope.unitPrio["Ballista"] = 0;
+        }
+        
+        scope.dontProduceFromThese.forEach(function(value){
+            for(var key in scope.unitProducedAt){
+                if(scope.unitProducedAt[key] == value){
+                    scope.unitPrio[key] = 0;
+                }
+            }
+        });
+    }
+    
+    static repair(){
+        for(var i = 0; i < myBuilds.allBuilds.length / 2; i++){
+            var building = myBuilds.allBuilds[Randomizer.nextInt(0, myBuilds.allBuilds.length - 1)];
+            var isUnderConstruction = building.isUnderConstruction();
+            
+            if(building.getValue("hp") < building.getFieldValue("hp") && isUnderConstruction == false){
+                var doRepair = true;
+                
+                for(var ii = 0; ii < repairingWorkers.length; ii++){
+                    var worker = repairingWorkers[ii];
+                    
+                    if(distanceFormula(worker.getX(), worker.getY(), building.getX(), building.getY()) <= 5){
+                        doRepair = false;
+                        ii = repairingWorkers.length;
+                    }
+                }//Checks to make sure there are no units already repairing the building,
+                
+                if(doRepair == true){
+                    if(isEnemyAroundBuilding(building) == false && miningWorkers.length > 0){
+                        var randWorker = miningWorkers[Randomizer.nextInt(0, miningWorkers.length - 1)];
+                        scope.order("Repair", [randWorker], {unit: building});
+                    }
+                }
+            }else if(isUnderConstruction == true){
+                var workers = getNotMiningWorkers();
+                var size = scope.buildingSizes[building.getTypeName()];
+                var hasWorker = false;
+                var enemyAround = isEnemyAroundBuilding(building);
+                
+                if(enemyAround == false){
+                    for(var ii = 0; ii < workers.length; ii++){
+                        var worker = workers[ii];
+                        
+                        if(Math.floor(distanceFormula(worker.getX(), worker.getY(), building.getX() + size[0] / 2, building.getY() + size[1] / 2)) <= size[0] + 2){
+                            hasWorker = true;
+                            ii = workers.length;
+                        }
+                    }
+                    if(hasWorker == false){
+                        if(miningWorkers.length > 0){
+                            var randWorker = miningWorkers[Randomizer.nextInt(0, miningWorkers.length - 1)];
+                            scope.order("Repair", [randWorker], {unit: building});
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    static reviseUpgradePrio(){
+        if(scope.meta == "Beast"){
+            
+            //Upgrade werewolves den
+            if(scope.subMeta == "WolfSnakeAndWerewolf"){
+                if(myBuilds["CastleAndFortresses"].length >= 2 && allWorkers.length > 14 && scope.underAttack == false && myBuilds["Wolves Dens"].length > 3 && myBuilds["Werewolves Dens"].length < 2){
+                    if(gold > 225){
+                        var den = myBuilds["Wolves Dens"][Randomizer.nextInt(0, myBuilds["Wolves Dens"].length - 1)]
+                        scope.order("Upgrade To Werewolves Den", [den]);
+                    }
+                }
+            }
+            
+            //Upgrade to fortress
+            if(scope.subMeta == "WolfSnakeAndDragon" || scope.subMeta == "DragonSpam"){
+                if(scope.underAttack == false && myBuilds["Fortresses"].length <= 0){
+                    if(gold >= 100){
+                        var castle = myBuilds["Castles"][0];
+                        
+                        if(castle != undefined){
+                            scope.order("Upgrade To Fortress", [castle]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    static assignWorkers(){
+        if(scope.lastNumOfCastles < scope.getBuildings({type: "Castle", player: me, onlyFinshed: true}).concat(myBuilds["Fortresses"]).length){
+            scope.lastNumOfCastles = myBuilds["CastleAndFortresses"].length;
+            
+            var castleDonate = Math.floor(allWorkers.length / myBuilds["CastleAndFortresses"].length);//how many workers each castle should donate
+            
+            var castleWorkers = [];//Formatted like so: [[], [], []]. The inner sets of brackets are arrays of workers that are
+            //assigned to that castle. The index of the inner arrays is also the index of the castle/fortress in myBuilds.
+            for(var i = 0; i < myBuilds["CastleAndFortresses"].length; i++){
+                castleWorkers.push([]);
+            }
+            
+            var counter1 = 0;//Debugging purposes
+            for(var i = 0; i < miningWorkers.length; i++){
+                var worker = miningWorkers[i];
+                for(var ii = 0; ii < myBuilds["CastleAndFortresses"].length; ii++){
+                    var curCastle = myBuilds["CastleAndFortresses"][ii];
+                    if(distanceFormula(curCastle.getX() + 2, curCastle.getY() + 2, worker.getX(), worker.getY()) <= 8){
+                        castleWorkers[ii].push(worker);
+                        counter1++;
+                        ii = myBuilds["CastleAndFortresses"].length;
+                    }
+                }
+            }
+            
+            var moveThese = [];//workers that will be reassigned
+            
+            for(var i = 0; i < castleWorkers.length; i++){
+                for(var ii = 0; ii < castleWorkers[i].length; ii++){
+                    if(ii > castleDonate){
+                        ii = castleWorkers[i].length;
+                    }else{
+                        moveThese.push(castleWorkers[i][ii]);
+                    }
+                }
+            }
+            
+            var newCastle = myBuilds["CastleAndFortresses"][myBuilds["CastleAndFortresses"].length - 1];
+            scope.order("Move", moveThese, {x: newCastle.getX() - 1, y: newCastle.getY() - 1});
+        }
+    }
+    
+    static workerScout(){
+        if(scope.workerScout == undefined && miningWorkers.length > 0){
+            var randWorker = miningWorkers[Randomizer.nextInt(0, miningWorkers.length - 1)];
+            scope.workerScout = randWorker;
+            var startLoc = scope.getStartLocationForPlayerNumber(getRandomEnemyNr());
+            
+            scope.order("AMove", [randWorker], startLoc);
+        }else if(miningWorkers.length > 0 && scope.workerScout.getCurrentHP() <= 0){
+            scope.workerScout = "Nothing";
+        }
+    }
+    
+    static preventCheese(){
+        if(scope.underAttack == true && fightingUnits.length <= 0 && miningWorkers.length >= 2 && myBuilds["CastleAndFortresses"][0] != undefined){
+            var enemyWorkers = scope.getUnits({type: "Worker", enemyOf: me});
+            for(var i = 0; i < enemyWorkers.length; i++){
+                var enemyWorker = enemyWorkers[i];
+                var isNew = true;
+                for(var ii = 0; ii < scope.enemyWorkerScouts.length; ii++){
+                    if(enemyWorker.equals(scope.enemyWorkerScouts[ii]) == true){
+                        isNew = false;
+                        ii = scope.enemyWorkerScouts.length;
+                    }
+                }
+                if(isNew == true && enemyWorker != undefined && distanceFormula(enemyWorker.getX(), enemyWorker.getY(), myBuilds["CastleAndFortresses"][0].getX(), myBuilds["CastleAndFortresses"][0].getY()) < 20){
+                    scope.enemyWorkerScouts.push(enemyWorker);
+                    scope.order("AMove", [miningWorkers[0], miningWorkers[1]], {x: enemyWorker.getX(), y: enemyWorker.getY()})
+                }
+            }
+        }//Counters worker scouts
+    }
+    
+    static brain(){
+        for(var i = 0; i < enemyUnits.length; i++){
+            var unit = enemyUnits[i];
+            
+            if(unit.getTypeName() == "Dragon" && scope.subMetaPrios["Units"].includes("Ballista") == false){
+                //scope.subMetaPrios["Buildings"].push("Workshop");
+                scope.subMetaPrios["Buildings"].push("Advanced Workshop");
+                scope.subMetaPrios["Units"].push("Ballista");
+                //scope.dontProduceFromThese.add("Workshop");
+                //scope.onlyProduceOneOfThese.push(["Workshop", "Workshops"]);
+            }
+        }
+    }
+    
+    static removeBuildFailures(){
+        var notMiningWorkers = getNotMiningWorkers();
+        var newArr = [];
+        for(var i = 0; i < notMiningWorkers.length; i++){
+            var worker = notMiningWorkers[i];
+            var lastWorker;
+            for(var ii = 0; ii < scope.lastNotMiningWorkers.length; ii++){
+                if(worker.equals(scope.lastNotMiningWorkers[ii]) == true){
+                    lastWorker = scope.lastNotMiningWorkers[ii];
+                }
+            }
+            if(lastWorker != undefined){
+                if(worker.getX() == lastWorker.getX() && worker.getY() == lastWorker.getY()){
+                    scope.order("Moveto", [worker], myBuilds["CastleAndFortresses"][Randomizer.nextInt(0, myBuilds["CastleAndFortresses"].length - 1)])
+                }
+            }
+            newArr.push(worker);
+        }
+        
+        scope.lastNotMiningWorkers = newArr;
+    }
+}
+
+/**
+ * A base centered on a castle. Pass the general area in which the base will be constructed.
+ * Note that by calling constructCastle, a new castle will be constructed by the
+ * CLOSEST gold mine(s). 
+ * 
+ * @param centerX {Number} - a region in which the base will find the closest gold mine and construct a castle there.
+ * 
+ * @param centerY {Number}a region in which the base will find the closest gold mine and construct a castle there.
+ */
+class Base {
+    constructor(centerX, centerY){
+        this.state = "Active";
+        this.boundingBoxRad = 15;
+        this.buildings = [];
+        this.goldMines = [];
+        this.originX = centerX;
+        this.originY = centerY;
+        
+        this.updateGoldMineCalc();
+        
+        scope.bases.push(this);
+    }
+    
+    constructCastle(){
+        
+        var centerX = this.nearestMine.getX() + 1.5;
+        var centerY = this.nearestMine.getY() + 1.5;
+        
+        var castle = new RandBuild({building: "Castle", "centerX": centerX, "centerY": centerY});
+        castle.minDisFromCenter = 6;
+        castle.buildRad = 11;
+        castle.tryTheseFirst = [[6.5, -2], [-6.5, -2], [-2, 6.5], [-2, -6.5]];
+        castle.heightComparison = scope.getHeightLevel(this.nearestMine.getX(), this.nearestMine.getY());
+        castle.buildAt(castle.findSuitableSpot());
+    }
+    
+    updateGoldMineCalc(){
+        
+        var unminedMines = getUnminedMines();
+        
+        if(unminedMines.length <= 0){
+            return;
+        }
+        
+        
+        var nearestMine = null;
+        var nearestDist = 99999;
+        for(var i = 0; i < unminedMines.length; i++){
+            var mine = unminedMines[i];
+            var dist = Math.pow((mine.getX() + 1.5) - this.originX, 2) + Math.pow((mine.getY() + 1.5) - this.originY, 2);
+            if(dist < nearestDist){
+                nearestMine = mine;
+                nearestDist = dist;
+            }
+        }
+        this.nearestMine = nearestMine;
+        //scope.chatMsg("Dist: " + distanceFormula(nearestMine.getX() + 1.5, nearestMine.getY() + 1.5, myBuilds["Castles"][0].getX() + 2, myBuilds["Castles"][0].getY() + 2));
+        
+        
+        for(var i = 0; i < unminedMines.length; i++){
+            var mine = unminedMines[i];
+            var curDist = Math.pow((mine.getX() + 1.5) - this.originX, 2) + Math.pow((mine.getY() + 1.5) - this.originY, 2);
+            if(curDist >= nearestDist && curDist < nearestDist + 3){
+                this.goldMines.push(mine);
+            }
+        }
+    }
+    
+    addBuilding(building){
+        this.buildings.push(building);
+    }
+}
+
+if(time > 1){
+    Us.update();
+}
+if(scope.bases.length <= 0){
+    var firstCastle = myBuilds["CastleAndFortresses"][0];
+    if(firstCastle != undefined){
+        var base = new Base(firstCastle.getX(), firstCastle.getY());
+    }
+}
+
+/*
+if(time % 5 == 0){
+    var chatThis = [];
+    var mines = getMinesWithGold();
+    
+    chatThis.push(mines[0].getValue("workload"))
+    chatThis.push(mines[0].getValue("Workload"))
+    
+    scope.chatMsg(JSON.stringify(chatThis))
+}*/
+
+function filterDontProducers(){
+    var badIdxs = [];
+    for(var i = 0; i < myBuilds.combatUnitProducers.length; i++){
+        if(scope.dontProduceFromThese.has(myBuilds.combatUnitProducers[i].getTypeName()) == true){
+            badIdxs.push(i);
+        }
+    }
+    
+    for(var i = 0; i < badIdxs.length; i++){
+        myBuilds.combatUnitProducers.splice(badIdxs[i], 1);
+        for(var ii = i; ii < badIdxs.length; ii++){
+            badIdxs[ii]--;
+        }
+    }
+}
+
+function armyBrain(){
+    var opfor = 0;
+    for(var i = 0; i < enemyUnits.length; i++){
+        if(enemyUnits[i] != undefined && enemyUnits[i].getCurrentHP() > 0){
+            var cur = enemyUnits[i];
+            opfor += scope.unitPower[cur.getTypeName()];
+        }
+    }
+    var myPower = 0;
+    for(var i = 0; i < fightingUnits.length; i++){
+        if(fightingUnits[i] != undefined && fightingUnits[i].getCurrentHP() > 0){
+            var cur = fightingUnits[i];
+            myPower += scope.unitPower[cur.getTypeName()];
+        }
+    }
+    
+    if(opfor > 0 && opfor > myPower * 1.2){//if the enemy is 20 percent more powerful - run away.
+        
+        exfil(fightingUnits);
+    }
+}
+
+function exfil(units){
+    if(units.length <= 0 || scope.canRetreat == false || myBuilds["allBuilds"].length <= 0){
+        return;
+    }
+    var chatLine;
+    var retreatBuilding;
+    const watchtowers = myBuilds["Watchtowers"];
+    const castles = myBuilds["CastleAndFortresses"];
+    var escapeTo;
+    var center = scope.getCenterOfUnits(fightingUnits);
+    if(watchtowers.length > 0){
+        var nearestWatchtower = null;
+        var nearestDist = 99999;
+        for(var i = 0; i < watchtowers.length; i++){
+            var watchtower = watchtowers[i];
+            var dist = Math.pow((watchtower.getX() + 1.5) - center.x, 2) + Math.pow((watchtower.getY() + 1.5) - center.y, 2);
+            if(dist < nearestDist){
+                nearestWatchtower = watchtower;
+                nearestDist = dist;
+            }
+        }
+        retreatBuilding = nearestWatchtower;
+    }else if(castles.length > 0){
+        retreatBuilding = castles[Randomizer.nextInt(0, castles.length - 1)]
+    }else{
+        return;
+    }
+    
+    if(distanceFormula(center.x, center.y, retreatBuilding.getX() + 1, retreatBuilding.getY() + 1) < 5){
+        return;
+    }
+    
+    if(Randomizer.nextBoolean(0.33) == true){
+        var possibleChat = ["I'm not retreating! I'm just moving rapidly in the opposite direction!",
+        "The needs of the few outweigh the needs of the many.", "The needs of the many outweigh the needs of the few.", "The needs of the any outweight the needs of the ew.", "It only becomes running away when you stop shooting/stabbing/otherwise killing back",
+        "Dinner time!", "Ahhhhh!", "Nice move", "Hey! Shooting retreating enemies is a war crime, you know? Sheesh.", "Don't we all love running?", "He who retreats lives slightly longer before he is executed for cowardince", "Discretion is the better part of valor.",
+        "Retreat! Ha! We're just rapidly advancing in the opposite direction!", "In this army, it takes more courage to retreat than to advance. Because deserters and retreating troops are execut- I mean rewarded heavily, of course.", "Fall back!", 
+        "Well, we can make our last stand over there just as well as over here.", "Blood makes the grass grow and we make the blood flow!", "I'll get you for this!", "lol", "THIS... IS... LITTLE WAR GAME!!!!", "They're everywhere!", "Uh oh", 
+        "All roads lead to Retreat.", "Over there! No, over there! No, over there!", "This is like herding cats", "We came in peace?", ";)", ":)", ":(", ");", ":0"];
+        chatLine = possibleChat[Randomizer.nextInt(0, possibleChat.length - 1)];
+        scope.chatMsg(chatLine);
+    }
+    
+    scope.order("Moveto", units, {unit: retreatBuilding});//orders a retreat to the main base
+}
+
+function isEnemyAroundBuilding(building, radius = 10){
+    for(var i = 0; i < enemyUnits.length; i++){
+        var unit = enemyUnits[i];
+        
+        if(unit != undefined){
+            if(distanceFormula(unit.getX(), unit.getY(), building.getX(), building.getY()) < radius){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function getMyMinedMines(){
+    var mines = getMinesWithGold();
+    var minedMines = [];
+    for(var i = 0; i < mines.length; i++){
+        var mine = mines[i];
+        var isUnmined = true;
+        for(var ii = 0; ii < myBuilds["CastleAndFortresses"].length; ii++){
+            var castle = myBuilds["CastleAndFortresses"][ii];
+            if(Math.ceil(distanceFormula(mine.getX() + 1.5, mine.getY() + 1.5, castle.getX() + 2, castle.getY() + 2)) <= 15){
+                isUnmined = false;
+                //ii = myBuilds["CastleAndFortresses"].length;
+            }
+        }
+        
+        if(isUnmined == false){
+            minedMines.push(mine);
+        }
+    }
+    return minedMines;
+}
+
+function getNotMiningWorkers(){
+    var notMining = [];
+    for(var i = 0; i < allWorkers.length; i++){
+        var worker = allWorkers[i];
+        var order = worker.getCurrentOrderName();
+        if(order != "Mine"){
+            notMining.push(worker);
+        }
+    }
+    return notMining;
+}
+
+function getUnminedMines(){
+    var mines = getMinesWithGold();
+    var allCastles = scope.getBuildings({type: "Castle"}).concat(scope.getBuildings({type: "Fortress"}));
+    
+    var unminedMines = [];
+    var allPlayers = scope.getArrayOfPlayerNumbers();
+    for(var i = 0; i < mines.length; i++){
+        var mine = mines[i];
+        var isUnmined = true;
+        for(var ii = 0; ii < allCastles.length; ii++){
+            var castle = allCastles[ii];
+            if(Math.round(distanceFormula(mine.getX() + 1.5, mine.getY() + 1.5, castle.getX() + 2, castle.getY() + 2)) <= 15){
+                isUnmined = false;
+                //ii = allCastles.length;
+            }else{
+                for(var player = 0; player < allPlayers.length; player++){
+                    var startLoc = scope.getStartLocationForPlayerNumber(allPlayers[player]);
+                    if(startLoc != undefined && allPlayers[player] != me){
+                        if(distanceFormula(mine.getX() + 1.5, mine.getY() + 1.5, startLoc.x, startLoc.y) <= 15){
+                            isUnmined = false;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if(isUnmined == true){
+            unminedMines.push(mine);
+        }
+    }
+    return unminedMines;
+}
+
+function getRandomEnemyNr(){
+    var rand = me;
+    var SENTINEL = 0;
+    var players = scope.getArrayOfPlayerNumbers();
+    var myTeam = scope.getTeamNumber(me);
+    
+    while(rand == me || scope.getTeamNumber(rand) == myTeam){
+        SENTINEL++;
+        if(SENTINEL > 20){
+            scope.chatMsg("getRandomEnemyNr: SENTINEL has been triggered.");
+            break;
+        }
+        rand = players[Randomizer.nextInt(0, players.length - 1)];
+    }
+    return rand;
+}
+
+function findRandomPrioKey(obj){
+    const min = 0.01;//if the number is 0, then it can't be produced
+    var max = 0;
+    
+    var chatThis = [];
+    for(var key in obj){
+        max += obj[key];
+        if(obj[key] > 0){
+            chatThis.push(key + ", " + obj[key]);
+        }
+    }
+    
+    if(max < min){
+        return;
+    }//if there is nothing prioritized - return.
+    
+    var randomNum = 0;
+    while(randomNum == 0){
+        randomNum = Math.round((Math.random() * (max - min) + min) * 100) / 100;
+    }
+    var lastNum = 0;
+    
+    var buildThis;
+    for(var key in obj){
+        var cur = lastNum + obj[key]
+        if(randomNum <= cur && cur > lastNum){
+            buildThis = key;
+            break;
+        }else{
+            lastNum += obj[key];
+        }
+    }//loops through build priority and finds the build that brackets randomNum.
+    //visualization: [--x--House--][---Barracks--] (x is randomNum)
+    
+    return buildThis;
+}
+
+function getMinesWithGold(){
+    return scope.getBuildings({type: "Goldmine"}).filter(mine => mine.getValue('gold') > 0);
+}
+
+function trainUnit(unit, amount = Infinity){
+    var productionBuildings = myBuilds[scope.unitProducedAt[unit]];
+    
+    if(productionBuildings == undefined){
+        throw new TypeError("unit " + unit + " does not have a production building listed.");
+        return;
+    }else if(productionBuildings.length <= 0){
+        return;
+    }
+    for(var i = 0; i < productionBuildings.length; i++){
+        if(productionBuildings[i].getUnitTypeNameInProductionQueAt(1) == undefined){
+            if(i >= amount){
+                break;
+            }
+            if(unit == "Ballista" || unit == "Airship" || unit == "Catapult" || unit == "Gatling Gun" || unit == "Gyrocraft"){
+                scope.order("Construct " + unit, [productionBuildings[i]]);
+            }else{
+                scope.order("Train " + unit, [productionBuildings[i]]);
+            }
+        }
+    }
+}
+
+function distanceFormula(x1, y1, x2, y2){
+    return Math.sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));
+}
