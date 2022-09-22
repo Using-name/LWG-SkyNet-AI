@@ -5,3 +5,4 @@ Current features under development:
 - Kiting
 - More sub-strategies for barracks meta
 - Mech meta
+- Worker scout kiting
