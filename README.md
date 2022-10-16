@@ -2,7 +2,6 @@
 A new AI for Little War Game with many new features! 
 
 Current features under development:
-- Kiting
-- More sub-strategies for barracks meta
-- Mech meta
-- Worker scout kiting
+- Catadrops
+- Gatling Gun dropping caltrops
+- Lag improvements
