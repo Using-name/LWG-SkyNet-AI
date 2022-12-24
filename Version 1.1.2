@@ -292,13 +292,13 @@ if(!scope.initailized){
                 "Buildings": ["Barracks"],
                 "Units": ["Soldier", "Archer", "Raider"],
                 "Upgrades": ["Forge"],
-                "Misc": {"attackThreshold": 1.8, "maxProducers": 4, "opener": true},
+                "Misc": {"attackThreshold": 1.8, "maxProducers": 10, "opener": true},
             },
             "Magical": {
                 "Buildings": ["Barracks", "Church"],
                 "Units": ["Mage", "Priest", "Raider"],
                 "Upgrades": ["Fireball", "Invisibility", "Forge"],
-                "Misc": {"attackThreshold": 1.8, "singleProduction": ["Mages Guild"], "maxProducers": 4, "opener": false},
+                "Misc": {"attackThreshold": 1.8, "singleProduction": ["Mages Guild"], "maxProducers": 10, "opener": false},
             }
         },
         "Beast": {
@@ -306,31 +306,31 @@ if(!scope.initailized){
                 "Buildings": ["Wolves Den", "Snake Charmer"],
                 "Units": ["Wolf", "Snake"],
                 "Upgrades": ["Animal Testing Lab"],
-                "Misc": {"attackThreshold": 3, "maxProducers": 6, "opener": true},
+                "Misc": {"attackThreshold": 3, "maxProducers": 14, "opener": true},
             },
             "WolfSnakeAndWerewolf": {
                 "Buildings": ["Wolves Den", "Snake Charmer"],
                 "Units": ["Wolf", "Snake", "Werewolf"],
                 "Upgrades": ["Werewolf Den", "Animal Testing Lab"],
-                "Misc": {"attackThreshold": 2.5, "maxProducers": 6, "opener": false},
+                "Misc": {"attackThreshold": 2.5, "maxProducers": 14, "opener": false},
             },
             "WolfSnakeAndDragon": {
                 "Buildings": ["Wolves Den", "Snake Charmer", "Dragons Lair"],
                 "Units": ["Wolf", "Snake", "Dragon"],
                 "Upgrades": ["Fortress", "Animal Testing Lab"],
-                "Misc": {"attackThreshold": 2.5, "maxProducers": 6, "opener": false},
+                "Misc": {"attackThreshold": 2.5, "maxProducers": 14, "opener": false},
             },
             "WolfSpam": {
                 "Buildings": ["Wolves Den"],
                 "Units": ["Wolf"],
                 "Upgrades": [],
-                "Misc": {"attackThreshold": 2.5, "maxProducers": 7, "opener": true},
+                "Misc": {"attackThreshold": 2.5, "maxProducers": 16, "opener": true},
             },
             "DragonSpamRush": {
                 "Buildings": ["Dragons Lair"],
                 "Units": ["Dragon"],
                 "Upgrades": ["Fortress", "Animal Testing Lab"],
-                "Misc": {"attackThreshold": 1.7, "maxProducers": 5, "opener": false},
+                "Misc": {"attackThreshold": 1.7, "maxProducers": 12, "opener": false},
             },
         },
         "Mechanical": {
@@ -338,25 +338,25 @@ if(!scope.initailized){
                 "Buildings": ["Workshop"],
                 "Units": ["Catapult"],
                 "Upgrades": ["Forge"],
-                "Misc": {"attackThreshold": 2.1, "maxProducers": 4, "opener": false},
+                "Misc": {"attackThreshold": 2.1, "maxProducers": 10, "opener": false},
             },
             "GatlingGunSpam": {
                 "Buildings": ["Workshop"],
                 "Units": ["Gatling Gun"],
                 "Upgrades": ["Forge"],
-                "Misc": {"attackThreshold": 2, "maxProducers": 4, "opener": true},
+                "Misc": {"attackThreshold": 2, "maxProducers": 10, "opener": true},
             },
             "CatapultGatlingGunSpam": {
                 "Buildings": ["Workshop"],
                 "Units": ["Gatling Gun", "Catapult"],
                 "Upgrades": ["Forge"],
-                "Misc": {"attackThreshold": 2.2, "maxProducers": 4, "opener": true},
+                "Misc": {"attackThreshold": 2.2, "maxProducers": 10, "opener": true},
             },
             "GyrocraftSpam" : {
                 "Buildings": ["Mill"],
                 "Units": ["Gyrocraft"],
                 "Upgrades": ["Forge"],
-                "Misc": {"singleProduction": ["Workshop"], "attackThreshold": 3, "maxProducers": 6, "opener": false},
+                "Misc": {"singleProduction": ["Workshop"], "attackThreshold": 3, "maxProducers": 14, "opener": false},
             }
         }
     }
@@ -1389,6 +1389,14 @@ class Us {
      */
     static reviseBuildPrio(){
         const subPrio = scope.subMetaPrios;
+
+        var prios = [];
+        for(var key in scope.buildPrio){
+            if(scope.buildPrio[key] > 0){
+                prios.push(key);
+            }
+        }
+        //scope.chatMsg(getMyColor() + "'s build prios: " + JSON.stringify(prios));
         
         if(gold >= 100){
             var checkHouses = true;
@@ -1803,6 +1811,14 @@ class Us {
      * TO UPDATE THIS!!!
      */
     static reviseUnitPrio(){
+        var prios = [];
+        for(var key in scope.unitPrio){
+            if(scope.unitPrio[key] > 0){
+                prios.push(key);
+            }
+        }
+        //scope.chatMsg(getMyColor() + "'s unit prios: " + JSON.stringify(prios));
+
         if(supplyDiff <= 3){
             for(var key in scope.unitPrio){
                 scope.unitPrio[key] = 0;
@@ -1860,6 +1876,7 @@ class Us {
                     for(var i = 0; i < fightingUnits.length; i++){
                         if(fightingUnits[i].getTypeName() != "Raider"){
                             doTrainRaiders = false;
+                            break;
                         }
                     }
 
@@ -2451,13 +2468,14 @@ class Us {
 
     static switchSubMeta(){
 
-        if(scope.switched === true || myBuilds["CastleAndFortresses"].length <= 2){
+        if(scope.switched === true || myBuilds["CastleAndFortresses"].length <= 0){
             return;
         }//Switch when there are 3 castles to a more advanced build
 
         scope.switched = true;
 
         var oldSubMeta = scope.subMeta;
+        var oldPrios = scope.subMetaPrios;
         while(true){
             scope.subMeta = scope.allSubMetas[scope.meta][Randomizer.nextInt(0, scope.allSubMetas[scope.meta].length - 1)];//fetches a submeta
             if(scope.subMeta != oldSubMeta){
@@ -2472,7 +2490,6 @@ class Us {
                 "Misc": {"attackThreshold": 1.8, "maxProducers": 4, "opener": true},
             },
          */
-        var oldPrios = scope.subMetaPrios;
         scope.subMetaPrios = scope.allSubMetaPrios[scope.meta][scope.subMeta];
         scope.subMetaPrios["Units"].concat(oldPrios["Units"]);
         if(myBuilds.combatUnitProducers.length >= oldPrios["Misc"].maxProducers){
@@ -2480,16 +2497,10 @@ class Us {
         }
 
         var alreadyNamed = [];
-        for(var i = scope.subMetaPrios["Units"].length - 1; i > -1; i--){
-            let name = scope.subMetaPrios["Units"][i];
-            if(alreadyNamed.includes(name)){
-                scope.subMetaPrios["Units"].splice(i, 1);
-            }else{
-                alreadyNamed.push(name);
-            }
-        }//Removes duplicates
-
-        //scope.chatMsg(JSON.stringify(scope.subMetaPrios["Units"]));
+        scope.subMetaPrios["Units"].filter((item, index) => scope.subMetaPrios["Units"].indexOf(item) === index)//Removes duplicates
+        //scope.chatMsg("****************");
+        //scope.chatMsg(getMyColor() + "'s new priorities: " + JSON.stringify(scope.subMetaPrios["Units"]));
+        //scope.chatMsg("****************");
 
         scope.attackThreshold = scope.subMetaPrios["Misc"].attackThreshold;
         scope.unitProducerCap = scope.subMetaPrios["Misc"].maxProducers;
@@ -2860,8 +2871,8 @@ function armyBrain(){
         retreatThreshold = myPower * 1.45;
     }//Will more agressively defend than attack
     
-    if(opfor > 0 && (opfor > kiteThreshold || enemyCatas.length > 0 || (enemyUnits.length > 3 && myMeleePercent < 0.4))){//If the enemy is passes the kiting requirements
-        if(opfor < retreatThreshold || fightingUnits.length <= 3 || enemyCatas.length > 0){//If the enemy passes the kiting requirements, otherwise will order a retreat.
+    if(opfor > 0 && (opfor > kiteThreshold || enemyCatas.length > 0 || enemyUnits.length > 3)){//If the enemy is passes the kiting requirements
+        if(opfor < retreatThreshold || fightingUnits.length <= 3 || (opfor < retreatThreshold && enemyCatas.length > 0)){//If the enemy passes the kiting requirements, otherwise will order a retreat.
             var kitingUnits = [];
             var shortKitingUnits = [];
             
@@ -2927,7 +2938,7 @@ function armyBrain(){
             var angryEnemyWorkers = scope.getUnits({type: "Worker", order: "AMove", enemyOf: me});
             angryEnemyWorkers = angryEnemyWorkers.concat(scope.getUnits({type: "Worker", order: "Attack", enemyOf: me}));
 
-            if(scope.workerScout.getCurrentHP() < scope.workerScout.getFieldValue("hp") * 0.25){
+            if(scope.workerScout.getCurrentHP() < scope.workerScout.getFieldValue("hp") * 0.35){
                 exfil([scope.workerScout]);
                 if(scope.trainingModeOn === true){
                     scope.chatMsg("Congratulations! You beat my worker scout!");
