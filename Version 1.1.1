@@ -1,6 +1,6 @@
 /**Deadly default AI
  * 
- * Version 1.1.0
+ * Version 1.1.1 Beta
  * 
  * Made by a totally not egotistcal, super awesome, cofee hating, and 
  * incredibly skilled and unparalled programer, 
@@ -10,8 +10,6 @@
  * Concerns? Complaints? Please refer to the Department of Nobody Cares. And
  * yes, I am the manager.
  */
-
-scope.trainingModeOn = false;
 
 const me = scope.getMyPlayerNumber();
 const time = Math.round(scope.getCurrentGameTimeInSec());
@@ -273,13 +271,95 @@ if(!scope.initailized){
         "Werewolf": 4,
         "Dragon": 3,
         "Airship": 0,
-        "Gatling Gun": 1.25,
+        "Gatling Gun": 1.2,
         "Gyrocraft": 1,
         "Catapult": 1.5,
         "Ballista": 1,
         "Bird": 0,
         "Healing Ward": 1,
     };
+
+    /**
+     * Priorities for various metas.
+     * 
+     * attackThreshold is the point at which the bot will attack, calculated
+     * by the number of combat unit producers (rax, workshops, etc.)
+     * multiplied by the attackThreshold.
+     */
+    scope.allSubMetaPrios = {
+        "Barracks": {
+            "Balanced": {
+                "Buildings": ["Barracks"],
+                "Units": ["Soldier", "Archer", "Raider"],
+                "Upgrades": ["Forge"],
+                "Misc": {"attackThreshold": 1.8, "maxProducers": 4, "opener": true},
+            },
+            "Magical": {
+                "Buildings": ["Barracks", "Church"],
+                "Units": ["Mage", "Priest", "Raider"],
+                "Upgrades": ["Fireball", "Invisibility", "Forge"],
+                "Misc": {"attackThreshold": 1.8, "singleProduction": ["Mages Guild"], "maxProducers": 4, "opener": false},
+            }
+        },
+        "Beast": {
+            "WolfSnakeSpam": {
+                "Buildings": ["Wolves Den", "Snake Charmer"],
+                "Units": ["Wolf", "Snake"],
+                "Upgrades": ["Animal Testing Lab"],
+                "Misc": {"attackThreshold": 3, "maxProducers": 6, "opener": true},
+            },
+            "WolfSnakeAndWerewolf": {
+                "Buildings": ["Wolves Den", "Snake Charmer"],
+                "Units": ["Wolf", "Snake", "Werewolf"],
+                "Upgrades": ["Werewolf Den", "Animal Testing Lab"],
+                "Misc": {"attackThreshold": 2.5, "maxProducers": 6, "opener": false},
+            },
+            "WolfSnakeAndDragon": {
+                "Buildings": ["Wolves Den", "Snake Charmer", "Dragons Lair"],
+                "Units": ["Wolf", "Snake", "Dragon"],
+                "Upgrades": ["Fortress", "Animal Testing Lab"],
+                "Misc": {"attackThreshold": 2.5, "maxProducers": 6, "opener": false},
+            },
+            "WolfSpam": {
+                "Buildings": ["Wolves Den"],
+                "Units": ["Wolf"],
+                "Upgrades": [],
+                "Misc": {"attackThreshold": 2.5, "maxProducers": 7, "opener": true},
+            },
+            "DragonSpamRush": {
+                "Buildings": ["Dragons Lair"],
+                "Units": ["Dragon"],
+                "Upgrades": ["Fortress", "Animal Testing Lab"],
+                "Misc": {"attackThreshold": 1.7, "maxProducers": 5, "opener": false},
+            },
+        },
+        "Mechanical": {
+            "CatapultSpam": {
+                "Buildings": ["Workshop"],
+                "Units": ["Catapult"],
+                "Upgrades": ["Forge"],
+                "Misc": {"attackThreshold": 2.1, "maxProducers": 4, "opener": false},
+            },
+            "GatlingGunSpam": {
+                "Buildings": ["Workshop"],
+                "Units": ["Gatling Gun"],
+                "Upgrades": ["Forge"],
+                "Misc": {"attackThreshold": 2, "maxProducers": 4, "opener": true},
+            },
+            "CatapultGatlingGunSpam": {
+                "Buildings": ["Workshop"],
+                "Units": ["Gatling Gun", "Catapult"],
+                "Upgrades": ["Forge"],
+                "Misc": {"attackThreshold": 2.2, "maxProducers": 4, "opener": true},
+            },
+            "GyrocraftSpam" : {
+                "Buildings": ["Mill"],
+                "Units": ["Gyrocraft"],
+                "Upgrades": ["Forge"],
+                "Misc": {"singleProduction": ["Workshop"], "attackThreshold": 3, "maxProducers": 6, "opener": false},
+            }
+        }
+    }
     
     var metas = ["Barracks",
                  "Beast", 
@@ -295,103 +375,17 @@ if(!scope.initailized){
     for(var i = 0; i < Randomizer.nextInt(1, 10); i++){
         scope.meta = metas[Randomizer.nextInt(0, metas.length - 1)];//fetches a meta
     }//Oftentimes, several bots in a multiplayer will choose the same meta because 
-    //of js magic. This for loop tries to stop that.
+    //of js magic. This for loop tries to add another layer of randomness to stop that.
     
-    for(var i = 0; i < Randomizer.nextInt(1, 10); i++){
-        scope.subMeta = scope.allSubMetas[scope.meta][Randomizer.nextInt(0, scope.allSubMetas[scope.meta].length - 1)];//fetches a submeta
-    }
-    
-    if(scope.subMeta === "DragonSpamRush" || scope.subMeta === "GyrocraftSpam"){
-        scope.unitPower["Ballista"] = 3;
-        scope.unitPower["Archer"] = 1.2;
-        scope.unitPower["Soldier"] = 0.5;
-        scope.unitPower["Werewolf"] = 1;
-        scope.unitPower["Catapult"] = 1;
-        scope.unitPower["Snake"] = 0.6;
-        scope.unitPower["Wolf"] = 0.4;
-    }
-    
-    /**
-     * Priorities for various metas.
-     * 
-     * attackThreshold is the point at which the bot will attack, calculated
-     * by the number of combat unit producers (rax, workshops, etc.)
-     * multiplied by the attackThreshold.
-     */
-    scope.allSubMetaPrios = {
-        "Barracks": {
-            "Balanced": {
-                "Buildings": ["Barracks"],
-                "Units": ["Soldier", "Archer", "Raider"],
-                "Upgrades": [],
-                "Misc": {"attackThreshold": 1.8},
-            },
-            "Magical": {
-                "Buildings": ["Barracks", "Church"],
-                "Units": ["Mage", "Priest", "Raider"],
-                "Upgrades": ["Fireball", "Invisibility"],
-                "Misc": {"attackThreshold": 1.8, "singleProduction": ["Mages Guild"]},
-            }
-        },
-        "Beast": {
-            "WolfSnakeSpam": {
-                "Buildings": ["Wolves Den", "Snake Charmer"],
-                "Units": ["Wolf", "Snake"],
-                "Upgrades": [],
-                "Misc": {"attackThreshold": 3},
-            },
-            "WolfSnakeAndWerewolf": {
-                "Buildings": ["Wolves Den", "Snake Charmer"],
-                "Units": ["Wolf", "Snake", "Werewolf"],
-                "Upgrades": ["Werewolf Den"],
-                "Misc": {"attackThreshold": 2.5},
-            },
-            "WolfSnakeAndDragon": {
-                "Buildings": ["Wolves Den", "Snake Charmer", "Dragons Lair"],
-                "Units": ["Wolf", "Snake", "Dragon"],
-                "Upgrades": ["Fortress"],
-                "Misc": {"attackThreshold": 2.5},
-            },
-            "WolfSpam": {
-                "Buildings": ["Wolves Den"],
-                "Units": ["Wolf"],
-                "Upgrades": [],
-                "Misc": {"attackThreshold": 2.5},
-            },
-            "DragonSpamRush": {
-                "Buildings": ["Dragons Lair"],
-                "Units": ["Dragon"],
-                "Upgrades": ["Fortress"],
-                "Misc": {"attackThreshold": 1.7},
-            },
-        },
-        "Mechanical": {
-            "CatapultSpam": {
-                "Buildings": ["Workshop"],
-                "Units": ["Catapult"],
-                "Upgrades": [],
-                "Misc": {"attackThreshold": 2.1},
-            },
-            "GatlingGunSpam": {
-                "Buildings": ["Workshop"],
-                "Units": ["Gatling Gun"],
-                "Upgrades": [],
-                "Misc": {"attackThreshold": 2},
-            },
-            "CatapultGatlingGunSpam": {
-                "Buildings": ["Workshop"],
-                "Units": ["Gatling Gun", "Catapult"],
-                "Upgrades": [],
-                "Misc": {"attackThreshold": 2.2},
-            },
-            "GyrocraftSpam" : {
-                "Buildings": ["Mill"],
-                "Units": ["Gyrocraft"],
-                "Upgrades": [],
-                "Misc": {"singleProduction": ["Workshop"], "attackThreshold": 3},
-            }
+    while(true){
+        for(var i = 0; i < Randomizer.nextInt(1, 5); i++){
+            scope.subMeta = scope.allSubMetas[scope.meta][Randomizer.nextInt(0, scope.allSubMetas[scope.meta].length - 1)];//fetches a submeta
+        }
+        if(scope.allSubMetaPrios[scope.meta][scope.subMeta]["Misc"].opener == true){
+            break;
         }
     }
+    
 
     /**
      * Determines what units the bot will produce, what buildings the bot will
@@ -402,6 +396,7 @@ if(!scope.initailized){
     
     scope.subMetaPrios = scope.allSubMetaPrios[scope.meta][scope.subMeta];
     scope.attackThreshold = scope.subMetaPrios["Misc"].attackThreshold;
+    scope.unitProducerCap = scope.subMetaPrios["Misc"].maxProducers;
     
     scope.bases = [];
     scope.doTrainUnits = true;
@@ -436,6 +431,7 @@ if(!scope.initailized){
     
     beginBotChat();
     
+    scope.trainingModeOn = false;
     if(scope.trainingModeOn === true){
         scope.mute = true;
     }else{
@@ -446,12 +442,10 @@ if(!scope.initailized){
 
     //At the beginning, cluster buildings together more.
     if(scope.startUnminedMines.length > 0){
-        scope.defaultBuildRad = 10;
+        scope.defaultBuildRad = 6;
     }else{
-        scope.defaultBuildRad = 25;
+        scope.defaultBuildRad = 8;
     }
-
-
     
     //scope.chatMsg(getMyColor() + ": " + metas[Randomizer.nextInt(0, metas.length - 1)] + ", " + scope.allSubMetas[scope.meta][Randomizer.nextInt(0, scope.allSubMetas[scope.meta].length - 1)]);
 }
@@ -474,7 +468,7 @@ class RandBuild {
         if(typeof obj.centerX != "number" || typeof obj.centerY != "number"){
             throw new TypeError("You must pass valid coordinates to RandBuild! Received coordinates: " + obj.centerX + ", " + obj.centerY)
         }
-        if(scope.buildingSizes[obj.building][0] == undefined){
+        if(scope.buildingSizes[obj.building][0] === undefined){
             throw new TypeError("RandBuild: " + obj.building + " does not have a building size listed!");
         }
         this.building = obj.building,
@@ -515,6 +509,10 @@ class RandBuild {
             "dontBuild": 0,
             "checkline": 0,
         }
+        scope.myPower = 999999;
+
+        this.pad = 1;
+        //scope.chatMsg(this.centerX + ", " + this.centerY);
     }
     
     /**
@@ -575,64 +573,11 @@ class RandBuild {
                     checklineFails++;
                     this.getNewLocation();
                 }
-                /*
-                //Two sides of the triangle; opposite and adjacent in the x and y dimensions.
-                var dx = (this.centerX) - (this.buildX + this.buildWidth / 2);
-                var dy = (this.centerY) - (this.buildY + this.buildHeight / 2);
-
-                //Hypotonuse
-                const dist = distanceFormula(this.centerX, this.centerY, this.buildX + this.buildWidth / 2, this.buildY + this.buildHeight / 2);
-                
-                var coordinates = [];
-
-                var cx = this.buildX + this.buildWidth / 2;//check x; what point will be checked. Defaults to the center of the proposed building spot.
-                var cy = this.buildY + this.buildHeight / 2;//check y; what point will be checked
-
-                var iterations = 0;
-                
-                var upperLeftCorner = {x: this.centerX - 1.5, y: this.centerY - 1.5};
-
-                var dontCheckThese = [];
-                for(var x = 0; x < 3; x++){
-                    for(var y = 0; y < 3; y++){
-                        dontCheckThese.push([upperLeftCorner.x + x, upperLeftCorner.y + y]);
-                    }
-                }//Omits the goldmine from the checks
-                //scope.chatMsg(JSON.stringify(dontCheckThese));
-
-
-                for(var i = 0; i < dist; i++){
-                    iterations++;
-                    cx += dx / dist;
-                    cy += dy / dist;
-
-                    var rcx = Math.round(cx);
-                    var rcy = Math.round(cy);
-
-                    coordinates.push(" " + JSON.stringify([Math.round(cx), Math.round(cy)]));
-
-                    var doCheck = true;
-                    for(var ii = 0; ii < dontCheckThese.length; ii++){
-                        if(dontCheckThese[ii][0] === rcx && dontCheckThese[ii][1] === rcy){
-                            doCheck = false;
-                            ii = dontCheckThese.length;
-                        }
-                    }
-                    if(doCheck === true && ((scope.getHeightLevel(rcx, rcy) != this.heightComparison) || scope.positionIsPathable(rcx, rcy) === false)){
-                        checklineFails++;
-                        sucess = false;
-                        this.getNewLocation();
-                        //scope.chatMsg("position " + rcx + ", " + rcy + " has failed");
-                        break;
-                    }
-                }
-                //scope.chatMsg(getMyColor() + "'s fails: dx: " + dx + ", dy: " + dy + ", cx: " + cx + ", cy: " + cy + ", dist: " + dist + ", sucess: " + sucess + ", coordinates: " + JSON.stringify(coordinates) + ", fails: " + checklineFails + ", Iterations: " + iterations); 
-                */
             }
             
             if(sucess === true){
-                for(var x = Math.floor(this.buildX - 1); x < Math.ceil(this.buildX + this.buildWidth) + 1; x++){
-                    for(var y = Math.floor(this.buildY - 1); y < Math.ceil(this.buildY + this.buildHeight) + 1; y++){
+                for(var x = Math.floor(this.buildX - this.pad); x < Math.ceil(this.buildX + this.buildWidth) + this.pad; x++){
+                    for(var y = Math.floor(this.buildY - this.pad); y < Math.ceil(this.buildY + this.buildHeight) + this.pad; y++){
                         SENTINEL++;
                         if(SENTINEL > this.maxTries * 10){
                             break;
@@ -1191,15 +1136,30 @@ class Us {
      * Lots of the Us static methods are activated here.
      */
     static update(){
+        let times = {};
+        let start = new Date();
         if(idleWorkers.length > 0){
             Us.idleWorkersMine();
+            times["idleWorkersMine"] = new Date();
         }
+
+        var myPower = 0;
+
+        for(var i = 0; i < fightingUnits.length; i++){
+            var power = scope.getPowerOf(fightingUnits[i]);
+            if(power != undefined){
+                myPower += power;
+            }
+        }
+        scope.myPower = myPower;
+        times["powerCalc"] = new Date();
+
         if(time % scope.tickrate["BuildCastle"] === 0 || (gold > 350 && gold < 500)){
             
             var lastCastle = scope.firstCastle;
             var base = new Base(lastCastle.getX(), lastCastle.getY(), false);
             //If there are no (known) enemies or enemy buildings, we are not in a map with no expansions, we are not under attack, and either we have too many workers or we are just starting out and need to grab a quick goldmine for increased production, then build a castle.
-            if(base.nearestMine != undefined && isEnemyAroundPosition(base.nearestMine.getX(), base.nearestMine.getY()) == false && scope.startUnminedMines.length > 0 && scope.underAttack == false && (workerToCastleRatio >= scope.maxWorkersOnBase || (myBuilds["CastleAndFortresses"].length == 1 && allWorkers.length > 8
+            if(base.nearestMine != undefined && isEnemyAroundPosition(base.nearestMine.getX(), base.nearestMine.getY()) === false && scope.startUnminedMines.length > 0 && scope.underAttack === false && (workerToCastleRatio >= scope.maxWorkersOnBase || (myBuilds["CastleAndFortresses"].length === 1 && allWorkers.length > 8
             ))){
                 if(gold > 350){
                     if(lastCastle != undefined){
@@ -1214,24 +1174,28 @@ class Us {
                 scope.doBuildBuildings = true;
             }
             
-            if(myBuilds["CastleAndFortresses"].length == 1 && myBuilds["Houses"].length > 0 && allWorkers.length < 8){
+            if(myBuilds["CastleAndFortresses"].length === 1 && myBuilds["Houses"].length > 0 && allWorkers.length < 8){
                 //Bot prioritizes a second castle over building barracks
                 scope.doBuildBuildings = false;
             }
+
+            times["buildCastle"] = new Date();
         }//If there are valid gold mines, too many workers, and we are not under 
         //attack, save up and build another castle. Either that, or if we have
-        //one castle, only build a house and rush the second castle.
+        //one castle, only build a house and rush the second castle. 
         
-        if(time % scope.tickrate["Repair"] == 0){
+        if(time % scope.tickrate["Repair"] === 0){
             Us.repair();
+            times["repair"] = new Date();
         }
         
-        if(time % scope.tickrate["Defend"] == 0){
+        if(time % scope.tickrate["Defend"] === 0){
             Us.defend();
+            times["defend"] = new Date();
         }
         
-        if(time % scope.tickrate["Build"] == 0){
-            if(scope.doBuildBuildings == true){//Builds a random building
+        if(time % scope.tickrate["Build"] === 0){
+            if(scope.doBuildBuildings === true){//Builds a random building
                 
                 Us.reviseBuildPrio();
                 
@@ -1241,6 +1205,9 @@ class Us {
                     var randCastle = myBuilds["CastleAndFortresses"][Randomizer.nextInt(0, myBuilds["CastleAndFortresses"].length - 1)];
                     if(randCastle != undefined){
                         var build = new RandBuild({building: buildThis, centerX: randCastle.getX(), centerY: randCastle.getY()});
+                        if(scope.meta == "Mechanical"){
+                            build.pad = 2;
+                        }
                         var lastBuild = myBuilds[buildThis];//Actually the array of all buildings of the same type, not the last build
                         
                         build.buildRad = scope.defaultBuildRad;
@@ -1256,7 +1223,7 @@ class Us {
                             build.heightComparisonIsPreferred = true;//Will attempt to build on the same height level as the base itself, unless there is no other option.
                         }//For efficency purposes, the bot will try to build buildings of the same type in neat rows.
                         
-                        if(buildThis == "Watchtower"){
+                        if(buildThis === "Watchtower"){
                             var centerX = randCastle.getX() + 2;
                             var centerY = randCastle.getY() + 2;
                             build.tryTheseFirst.push([centerX - 1, centerY + 4, false], [centerX - 1, centerY - 4, false], [centerX + 1, centerY + 4, false], [centerX + 1, centerY - 4, false])
@@ -1276,21 +1243,22 @@ class Us {
                         }
                         
                         build.buildAt(build.findSuitableSpot());
-                        if(build.fails["places"] > 70){
+                        if(build.fails["places"] > 60){
                             scope.defaultBuildRad++;
                         }
                     }
                 }
             }
+            times["build"] = new Date();
         }
         
-        if(time % scope.tickrate["Train"] == 0){
-            if(scope.doTrainUnits == true){
+        if(time % scope.tickrate["Train"] === 0){
+            if(scope.doTrainUnits === true){
                 Us.reviseUnitPrio();
                 
                 var trainThis = findRandomPrioKey(scope.unitPrio);
                 if(trainThis != undefined){
-                    if(trainThis == "Bird"){
+                    if(trainThis === "Bird"){
                         //Train a single bird, then find something more
                         //useful to trian.
                         trainUnit("Bird", 1);
@@ -1307,56 +1275,93 @@ class Us {
                     trainUnit(trainThis);
                 }
             }
+            times["train"] = new Date();
         }
         
-        if(time % 9 == 0){
-            Us.reviseUpgradePrio()
+        if(time % 9 === 0){
+            Us.reviseUpgradePrio();
+            times["reviseUpgradePrio"] = new Date();
         }
         
-        if(time % scope.tickrate["Attack"] == 0){
-            if(Us.shouldAttack() == true){
+        if(time % scope.tickrate["Attack"] === 0){
+            if(Us.shouldAttack() === true){
                 Us.attack();
-            }else if(scope.justAttacked == true){
+            }else if(scope.justAttacked === true){
                 setTimeout(function(){
                     scope.justAttacked = false;
                 }, scope.tickrate["Attack"] * 1000);
             }
+            times["attack"] = new Date();
         }
         
-        if(time % scope.tickrate["Scout"] == 0){
+        if(time % scope.tickrate["Scout"] === 0){
             Us.scout();
+            times["scout"] = new Date();
         }
         
-        if(time % 3 == 0){
+        if(time % 3 === 0){
             Us.assignWorkers();
+            times["assignWorkers"] = new Date();
         }
         
-        if(time % 3 == 0){
+        if(time % 3 === 0){
             Us.preventCheese();
+            times["preventCheese"] = new Date();
         }
         
         if(time < 5){
             Us.workerScout();
         }
         
-        if(time % scope.tickrate["ArmyBrain"] == 0){
+        if(time % scope.tickrate["ArmyBrain"] === 0){
             armyBrain();
+            times["armyBrain"] = new Date();
         }
         
-        if(time % 10 == 0){
+        if(time % 10 === 0){
             Us.brain();
+            times["Us.brain"] = new Date();
         }
 
-        if(time % 5 == 0){
+        if(time % 5 === 0){
             Us.updateSubPrioMisc();
+            times["subPrioMisc"] = new Date();
         }
 
-        if(time % 2 == 0){
+        if(time % 2 === 0){
             Us.useAbilites();
+            times["useAbilites"] = new Date();
         }
 
-        if((time + 1) % 2 == 0){
+        if((time + 1) % 2 === 0){
             Us.useBirds();
+            times["useBirds"] = new Date();
+        }
+
+        if(time % 9 === 0){
+            Us.switchSubMeta();
+            times["subMetaSwitch"] = new Date();
+        }
+
+        let end = new Date();
+        let diff = end.getTime() - start.getTime();
+        let last = null;
+        for(var key in times){
+            let newLast = times[key].getTime();
+            if(last != null){
+                times[key] = Math.round(times[key].getTime() - last);
+            }else{
+                times[key] = Math.round(times[key].getTime() - start.getTime());
+            }
+
+            if(last == times[key]){
+                delete times[key];
+            }
+            last = newLast;
+        }
+        if(diff > 2){
+            //scope.chatMsg(getMyColor() + "'s operations took " + diff + " milliseconds."); 
+            //scope.chatMsg("Breakdown: " + JSON.stringify(times));
         }
     }
 
@@ -1389,7 +1394,7 @@ class Us {
             var checkHouses = true;
             var numHousesUnderConstruction = 0;
             for(var i = 0; i < myBuilds.Houses.length; i++){
-                if(myBuilds.Houses[i].isUnderConstruction() == true){
+                if(myBuilds.Houses[i].isUnderConstruction() === true){
                     numHousesUnderConstruction++;
                 }
             }
@@ -1398,12 +1403,12 @@ class Us {
                 checkHouses = false;
             }
 
-            if(myBuilds["Houses"].length == 1 && myBuilds.combatUnitProducers.length < 1){
+            if(myBuilds["Houses"].length === 1 && myBuilds.combatUnitProducers.length < 1){
                 checkHouses = false;
             }//Prevents a double house opening
             
-            if(checkHouses == true){
-                if(scope.meta == "Barracks"){
+            if(checkHouses === true){
+                if(scope.meta === "Barracks"){
                     if(supplyDiff <= 4){
                         scope.buildPrio["House"] = 1;
                     }else if(supplyDiff <= 6){
@@ -1411,7 +1416,7 @@ class Us {
                     }else{
                         scope.buildPrio["House"] = 0;
                     }
-                }else if(scope.meta == "Beast"){
+                }else if(scope.meta === "Beast"){
                     if(supplyDiff <= 0){
                         scope.buildPrio["House"] = 2;
                     }else if(supplyDiff <= 5){
@@ -1421,7 +1426,7 @@ class Us {
                     }else{
                         scope.buildPrio["House"] = 0;
                     }
-                }else if(scope.meta == "Mechanical"){
+                }else if(scope.meta === "Mechanical"){
                     if(supplyDiff <= 0){
                         scope.buildPrio["House"] = 1.5;
                     }else if(supplyDiff <= 5){
@@ -1446,11 +1451,9 @@ class Us {
             if(typeof building != "object"){
                 throw new TypeError("building " + JSON.stringify(building) + " is not a valid combat unit producer.")
             }else{
-                if(building.isUnderConstruction() == false){
-                    const unitName = building.getUnitTypeNameInProductionQueAt(1);
-                    if(unitName == null || building.getRemainingBuildTime() == scope.getTypeFieldValue(unitName, "buildTimeInSec")){
-                        noProductionBuildings++;
-                    }
+                const unitName = building.getUnitTypeNameInProductionQueAt(1);
+                if(unitName == null || building.getRemainingBuildTime() == scope.getTypeFieldValue(unitName, "buildTimeInSec")){
+                    noProductionBuildings++;
                 }
             }
         }//If the current combat unit producers don't have enough
@@ -1464,16 +1467,16 @@ class Us {
         }
         
         if(scope.startUnminedMines.length > 0){
-            if(scope.meta == "Barracks"){
-                if(combatUnitProducerToCastleRatio >= 2){
+            if(scope.meta === "Barracks"){
+                if(combatUnitProducerToCastleRatio >= 2 || myBuilds.combatUnitProducers.length >= 5){
                     checkCombatUnitProducers = false;
                 }
-            }else if(scope.meta == "Beast"){
-                if(combatUnitProducerToCastleRatio >= 4){
+            }else if(scope.meta === "Beast"){
+                if(combatUnitProducerToCastleRatio >= 4 || myBuilds.combatUnitProducers.length >= 6){
                     checkCombatUnitProducers = false;
                 }
-            }else if(scope.meta == "Mechanical"){
-                if(combatUnitProducerToCastleRatio >= 2){
+            }else if(scope.meta === "Mechanical"){
+                if(combatUnitProducerToCastleRatio >= 2 || myBuilds.combatUnitProducers.length >= 4){
                     checkCombatUnitProducers = false;
                 }
             }
@@ -1481,10 +1484,10 @@ class Us {
         //per castle(combat unit producers = barracks, wolves dens, workshops, 
         //etc.). Doesn't apply to maps that don't have any viable expansions.
         
-        if(checkCombatUnitProducers == true){
-            if(scope.meta == "Barracks"){
+        if(checkCombatUnitProducers === true){
+            if(scope.meta === "Barracks"){
                 var barracksPrio = 0;
-                if(subPrio["Buildings"].includes("Barracks") == true){
+                if(subPrio["Buildings"].includes("Barracks") === true){
                     //Barracks are unique in that they require a mage's guild
                     //in order to produce mages. This makes sure that a
                     //guild is built before a barracks if the subMeta is
@@ -1500,15 +1503,15 @@ class Us {
                 scope.buildPrio["Barracks"] = barracksPrio;
 
                 var guildPrio = 0;
-                if(subPrio["Buildings"].includes("Mages Guild") == true){
-                    if(myBuilds.Houses.length > 0 && myBuilds["Barracks"].length > 0 && gold > 100){
+                if(subPrio["Buildings"].includes("Mages Guild") === true){
+                    if(myBuilds["Barracks"].length > 1 && gold > 100){
                         guildPrio = 1;
                     }
                 }
                 scope.buildPrio["Mages Guild"] = guildPrio;
 
                 var churchPrio = 0;
-                if(subPrio["Buildings"].includes("Church") == true){
+                if(subPrio["Buildings"].includes("Church") === true){
                     if(myBuilds.Houses.length > 0 && gold > 150){
                         if(supplyDiff > 6){
                             churchPrio = 1;
@@ -1518,11 +1521,11 @@ class Us {
                     }
                 }
                 scope.buildPrio["Church"] = churchPrio;
-            }else if(scope.meta == "Beast"){
+            }else if(scope.meta === "Beast"){
                 //Wolves dens
                 var wolvesDenPrio = 0;
-                //if(subMeta == "WolfSnakeSpam" || subMeta == "WolfSnakeAndWerewolf" || subMeta == "WolfSnakeAndDragon" || subMeta == "WolfSpam"){
-                if(subPrio["Buildings"].includes("Wolves Den") == true && myBuilds.Houses.length > 0 && gold > 100){
+                //if(subMeta === "WolfSnakeSpam" || subMeta === "WolfSnakeAndWerewolf" || subMeta === "WolfSnakeAndDragon" || subMeta === "WolfSpam"){
+                if(subPrio["Buildings"].includes("Wolves Den") === true && myBuilds.Houses.length > 0 && gold > 100){
                     if(scope.getCurrentSupply() < scope.getMaxSupply() - 6){
                         wolvesDenPrio = 1;
                     }else if(scope.getCurrentSupply() < scope.getMaxSupply() - 3){
@@ -1533,8 +1536,8 @@ class Us {
                 
                 //Snake charmer
                 var charmerPrio = 0;
-                //if(subMeta == "WolfSnakeSpam" || subMeta == "WolfSnakeAndWerewolf" || subMeta == "WolfSnakeAndDragon"){
-                if(subPrio["Buildings"].includes("Snake Charmer") == true && subPrio["Buildings"].includes("Snake Charmer") == true){
+                //if(subMeta === "WolfSnakeSpam" || subMeta === "WolfSnakeAndWerewolf" || subMeta === "WolfSnakeAndDragon"){
+                if(subPrio["Buildings"].includes("Snake Charmer") === true && subPrio["Buildings"].includes("Snake Charmer") === true){
                     if(myBuilds["Snake Charmers"].length <= 0 && myBuilds["Wolves Dens"].length > 1 && gold > 100){
                         charmerPrio = 1;
                     }else{
@@ -1546,8 +1549,8 @@ class Us {
                 
                 //Dragon's lair
                 var lairPrio = 0;
-                //if(subMeta == "WolfSnakeAndDragon" || subMeta == "DragonSpamRush"){
-                if(subPrio["Buildings"].includes("Dragons Lair") == true){
+                //if(subMeta === "WolfSnakeAndDragon" || subMeta === "DragonSpamRush"){
+                if(subPrio["Buildings"].includes("Dragons Lair") === true){
                     if(myBuilds["Fortresses"].length > 0 && gold >= 125){
                         if(supplyDiff > 6){
                             lairPrio = 1;
@@ -1559,9 +1562,9 @@ class Us {
                     }
                 }
                 scope.buildPrio["Dragons Lair"] = lairPrio;
-            }else if(scope.meta == "Mechanical"){
+            }else if(scope.meta === "Mechanical"){
                 var workshopPrio = 0;
-                if(subPrio["Buildings"].includes("Workshop") == true){
+                if(subPrio["Buildings"].includes("Workshop") === true){
                     if(myBuilds.Houses.length > 0 && gold > 125){
                         if(supplyDiff > 6){
                             workshopPrio = 1;
@@ -1573,7 +1576,7 @@ class Us {
                 scope.buildPrio["Workshop"] = workshopPrio;
 
                 var millPrio = 0;
-                if(subPrio["Buildings"].includes("Mill") == true && myBuilds["Workshops"].length > 0){
+                if(subPrio["Buildings"].includes("Mill") === true && myBuilds["Workshops"].length > 0){
                     if(myBuilds.Houses.length > 0 && gold > 140){
                         if(supplyDiff > 5){
                             millPrio = 1;
@@ -1585,19 +1588,19 @@ class Us {
                 scope.buildPrio["Mill"] = millPrio;
             }
             
-            if(subPrio["Buildings"].includes("Workshop") == true){
+            if(subPrio["Buildings"].includes("Workshop") === true){
                 scope.buildPrio["Workshop"] = 1;
             }else{
                 scope.buildPrio["Workshop"] = 0;
             }
             
-            if(supplyDiff > 4 && subPrio["Buildings"].includes("Advanced Workshop") == true){
+            if(supplyDiff > 4 && subPrio["Buildings"].includes("Advanced Workshop") === true){
                 scope.buildPrio["Advanced Workshop"] = 1;
             }else{
                 scope.buildPrio["Advanced Workshop"] = 0;
             }
 
-            if(myBuilds["Watchtowers"].length < myBuilds["CastleAndFortresses"].length && gold > 130){
+            if(myBuilds["Watchtowers"].length < myBuilds["CastleAndFortresses"].length && gold > 130 && myBuilds["CastleAndFortresses"].length > 1){
                 scope.buildPrio["Watchtower"] = 1;
             }else{
                 scope.buildPrio["Watchtower"] = 0
@@ -1613,7 +1616,22 @@ class Us {
                 }
             });
             
-            
+            //Upgrades
+            //---------------------------------------------------------------
+
+            const subPrioUpg = scope.subMetaPrios["Upgrades"];
+            //Forge building
+            if(subPrioUpg.includes("Forge") === true){
+                if(scope.myPower > 10 && myBuilds["Forges"].length <= 0 && (myBuilds["CastleAndFortresses"].length > 2 || (scope.startUnminedMines.length <= 0 && myBuilds["CastleAndFortresses"].length > 0))){
+                    scope.buildPrio["Forge"] = 1;
+                }
+            }
+
+            if(subPrioUpg.includes("Animal Testing Lab") === true){
+                if(scope.myPower > 10 && myBuilds["Animal Testing Labs"].length <= 0 && (myBuilds["CastleAndFortresses"].length > 2 || (scope.startUnminedMines.length <= 0 && myBuilds["CastleAndFortresses"].length > 0))){
+                    scope.buildPrio["Animal Testing Lab"] = 1;
+                }
+            }
         }else{
             for(var key in scope.buildPrio){
                 scope.buildPrio[key] = 0;
@@ -1623,7 +1641,7 @@ class Us {
     
     
     /**
-     * If the bot should attack. Checks if the bot has more than twice the
+    * If the bot should attack. Checks if the bot has more than twice the
      * number of units of the bot's combat unit producers if the meta is
      * barracks or if the submeta is DragonSpamRush, while if the meta is beast and 
      * not DragonSpamRush, the minimum amount of units is the number of combat
@@ -1637,7 +1655,8 @@ class Us {
             threshold = scope.attackThreshold;
         }
 
-        if(fightingUnits.length >= myBuilds.combatUnitProducers.length * threshold && scope.underAttack == false){
+        //If we have too much population or meet the attack threshold
+        if((fightingUnits.length >= myBuilds.combatUnitProducers.length * threshold && scope.underAttack === false) || supplyDiff <= 3){
             return true;
         }else{
             return false;
@@ -1734,15 +1753,15 @@ class Us {
         
         attackingFightingUnits = enemyFightingUnits;
 
-        if(underAttack == true){
+        if(underAttack === true){
             scope.underAttack = true;
             if(attackingFightingUnits == undefined){
                 scope.chatMsg("attackingFightingUnits is undefined!");
             }else{
                 var center = scope.getCenterOfUnits(attackingFightingUnits);
                 var responseUnits = [];
-                var myPower = 0;
                 var enPower = 0;
+                var myPower = 0;
                 
                 for(var i = 0; i < attackingFightingUnits.length; i++){
                     const pow = scope.getPowerOf(attackingFightingUnits[i]);
@@ -1756,7 +1775,7 @@ class Us {
                     var unit = fightingUnits[i];
                     var power = scope.getPowerOf(unit);
                     if(power != undefined){
-                        myPower += power
+                        myPower += power;
                         responseUnits.push(fightingUnits[i]);
                     }
                     if(myPower > enPower){
@@ -1765,6 +1784,11 @@ class Us {
                 }//If a matching force of units have been dispatched, break.
                 //scope.chatMsg(getMyColor() + ": myPower: " + myPower + ", enemyPower: " + enPower);
                 scope.order("AMove", responseUnits, center);
+
+                //If we don't have enough power to overwhelm, worker rush.
+                if(enPower - scope.myPower >= scope.myPower * 2){
+                    Us.workerRush(center, 25, enPower - scope.myPower);
+                }
             }
         }else{
             scope.underAttack = false;
@@ -1783,7 +1807,7 @@ class Us {
             for(var key in scope.unitPrio){
                 scope.unitPrio[key] = 0;
             }
-            if(myBuilds["CastleAndFortresses"].length == 1 && allWorkers.length <= 8){
+            if(myBuilds["CastleAndFortresses"].length === 1 && allWorkers.length <= 8){
                 scope.unitPrio["Worker"] = 1;
             }
             return;
@@ -1791,29 +1815,29 @@ class Us {
         
         const subPrio = scope.subMetaPrios;
         if(workerToCastleRatio < 5){//If there are less than 5 workers per castle, give insane priority to workers.
-            scope.unitPrio["Worker"] = 4;
+            scope.unitPrio["Worker"] = 2;
         }else if(workerToCastleRatio >= 5 && workerToCastleRatio <= scope.maxWorkersOnBase){//If there are more than 5 workers but less than 7 workers, give moderate priority to workers.
-            scope.unitPrio["Worker"] = 1;
+            scope.unitPrio["Worker"] = 0.9;
         }else{//If there are too many workers, give priority to other units.
             scope.unitPrio["Worker"] = 0;
         }
 
-        if(scope.startUnminedMines.length <= 0){
+        if(scope.startUnminedMines.length <= 0){//If it's on diag
             scope.unitPrio["Worker"] = 1;
         }
         
-        if(scope.meta == "Barracks"){
+        if(scope.meta === "Barracks"){
             //Barracks produced units
             if(myBuilds["Barracks"].length > 0){
                 //Soldier
-                if(subPrio["Units"].includes("Soldier") == true){
+                if(subPrio["Units"].includes("Soldier") === true){
                     scope.unitPrio["Soldier"] = 1;
                 }else{
                     scope.unitPrio["Soldier"] = 0;
                 }
 
                 //Archer
-                if(subPrio["Units"].includes("Archer") == true){
+                if(subPrio["Units"].includes("Archer") === true){
                     scope.unitPrio["Archer"] = 0.7;
                 }else{
                     scope.unitPrio["Archer"] = 0;
@@ -1821,7 +1845,7 @@ class Us {
 
                 //Mages
                 if(myBuilds["Mages Guilds"].length > 0){
-                    if(subPrio["Units"].includes("Mage") == true){
+                    if(subPrio["Units"].includes("Mage") === true){
                         scope.unitPrio["Mage"] = 1;
                     }else{
                         scope.unitPrio["Mage"] = 0;
@@ -1829,7 +1853,7 @@ class Us {
                 }
 
                 //Raiders
-                if(subPrio["Units"].includes("Raider") == true){
+                if(subPrio["Units"].includes("Raider") === true){
                     //Because raiders are early-game, if there are
                     //other units, let them be produced instead.
                     var doTrainRaiders = true;
@@ -1839,7 +1863,7 @@ class Us {
                         }
                     }
 
-                    if(doTrainRaiders == true){
+                    if(doTrainRaiders === true){
                         scope.unitPrio["Raider"] = 1;
                     }else{
                         scope.unitPrio["Raider"] = 0;
@@ -1854,18 +1878,18 @@ class Us {
 
             //Priests
             if(myBuilds["Churches"].length > 0){
-                if(subPrio["Units"].includes("Priest") == true){
+                if(subPrio["Units"].includes("Priest") === true){
                     scope.unitPrio["Priest"] = 1;
                 }else{
                     scope.unitPrio["Priest"] = 0;
                 }
             }
-        }else if(scope.meta == "Beast"){
+        }else if(scope.meta === "Beast"){
             //Wolves
-            if(subPrio["Units"].includes("Wolf") == true && myBuilds["Wolves Dens"].length > 0){
+            if(subPrio["Units"].includes("Wolf") === true && myBuilds["Wolves Dens"].length > 0){
                 scope.unitPrio["Wolf"] = 1;
                 
-                if(subPrio["Units"].includes("Snake") == true && myBuilds["Snake Charmers"].length > 0 && myUnits["Wolf"] != undefined && myUnits["Wolf"].length >= myBuilds["Wolves Dens"].length){
+                if(subPrio["Units"].includes("Snake") === true && myBuilds["Snake Charmers"].length > 0 && myUnits["Wolf"] != undefined && myUnits["Wolf"].length >= myBuilds["Wolves Dens"].length){
                     scope.unitPrio["Snake"] = 0.5;
                 }else{
                     scope.unitPrio["Snake"] = 0;
@@ -1875,36 +1899,36 @@ class Us {
             }
             
             //Werewolves
-            if(subPrio["Units"].includes("Werewolf") == true && myBuilds["Werewolves Dens"].length > 0){
+            if(subPrio["Units"].includes("Werewolf") === true && myBuilds["Werewolves Dens"].length > 0){
                 scope.unitPrio["Werewolf"] = 1;
             }else{
                 scope.unitPrio["Werewolf"] = 0;
             }
             
             //Dragons
-            if(subPrio["Units"].includes("Dragon") == true && myBuilds["Dragon Lairs"].length > 0){
+            if(subPrio["Units"].includes("Dragon") === true && myBuilds["Dragon Lairs"].length > 0){
                 scope.unitPrio["Dragon"] = 1;
             }else{
                 scope.unitPrio["Dragon"] = 0;
             }
-        }else if(scope.meta == "Mechanical"){
+        }else if(scope.meta === "Mechanical"){
 
             //Catapults
-            if(subPrio["Units"].includes("Catapult") == true && myBuilds["Workshops"].length > 0){
+            if(subPrio["Units"].includes("Catapult") === true && myBuilds["Workshops"].length > 0){
                 scope.unitPrio["Catapult"] = 1;
             }else{
                 scope.unitPrio["Catapult"] = 0;
             }
             
             //Gatling guns
-            if(subPrio["Units"].includes("Gatling Gun") == true && myBuilds["Workshops"].length > 0){
+            if(subPrio["Units"].includes("Gatling Gun") === true && myBuilds["Workshops"].length > 0){
                 scope.unitPrio["Gatling Gun"] = 1;
             }else{
                 scope.unitPrio["Gatling Gun"] = 0;
             }
 
             //Gyrocraft
-            if(subPrio["Units"].includes("Gyrocraft") == true && myBuilds["Mills"].length > 0){
+            if(subPrio["Units"].includes("Gyrocraft") === true && myBuilds["Mills"].length > 0){
                 scope.unitPrio["Gyrocraft"] = 1;
             }else{
                 scope.unitPrio["Gyrocraft"] = 0;
@@ -1912,20 +1936,20 @@ class Us {
         }
 
         //Ballistae
-        if(subPrio["Units"].includes("Ballista") == true && myBuilds["Advanced Workshops"].length > 0){
+        if(subPrio["Units"].includes("Ballista") === true && myBuilds["Advanced Workshops"].length > 0){
             scope.unitPrio["Ballista"] = 1;
         }else{
             scope.unitPrio["Ballista"] = 0;
         }
 
         //Birds
-        if(subPrio["Units"].includes("Bird") == true && (myUnits["Bird"] == undefined || myUnits["Bird"].length < 2)){//If there are no birds or if the length of birds is less than 2
+        if(subPrio["Units"].includes("Bird") === true && (myUnits["Bird"] === undefined || myUnits["Bird"].length < 2)){//If there are no birds or if the length of birds is less than 2
             scope.unitPrio["Bird"] = 0.5;
         }
         
         scope.dontProduceFromThese.forEach(function(value){
             for(var key in scope.unitProducedAt){
-                if(scope.unitProducedAt[key] == value){
+                if(scope.unitProducedAt[key] === value){
                     scope.unitPrio[key] = 0;
                 }
             }
@@ -1943,7 +1967,7 @@ class Us {
             var isUnderConstruction = building.isUnderConstruction();
             
             //basiscally if the building needs repairing.
-            if(building.getValue("hp") < building.getFieldValue("hp") && isUnderConstruction == false){
+            if(building.getValue("hp") < building.getFieldValue("hp") && isUnderConstruction === false){
                 var doRepair = true;
                 
                 for(var ii = 0; ii < repairingWorkers.length; ii++){
@@ -1955,21 +1979,21 @@ class Us {
                     }
                 }//Checks to make sure there are no units already repairing the building,
                 
-                if(doRepair == true){
+                if(doRepair === true){
                     //Will repair watchtowers no matter what, but other buildings will check to make sure 
                     //there are no enemies around
-                    if((isEnemyAroundBuilding(building) == false || building.getTypeName() == "Watchtower") && miningWorkers.length > 0){
+                    if((isEnemyAroundBuilding(building) === false || building.getTypeName() === "Watchtower") && miningWorkers.length > 0){
                         var randWorker = miningWorkers[Randomizer.nextInt(0, miningWorkers.length - 1)];
                         scope.order("Repair", [randWorker], {unit: building});
                     }
                 }
-            }else if(isUnderConstruction == true){
+            }else if(isUnderConstruction === true){
                 var workers = getNotMiningWorkers();
                 var size = scope.buildingSizes[building.getTypeName()];
                 var hasWorker = false;
                 var enemyAround = isEnemyAroundBuilding(building);
                 
-                if(enemyAround == false || building.getTypeName() == "Watchtower"){
+                if(enemyAround === false || building.getTypeName() === "Watchtower"){
                     for(var ii = 0; ii < workers.length; ii++){
                         var worker = workers[ii];
                         
@@ -1978,7 +2002,7 @@ class Us {
                             ii = workers.length;
                         }
                     }
-                    if(hasWorker == false){
+                    if(hasWorker === false){
                         if(miningWorkers.length > 0){
                             var randWorker = miningWorkers[Randomizer.nextInt(0, miningWorkers.length - 1)];
                             scope.order("Repair", [randWorker], {unit: building});
@@ -1999,8 +2023,8 @@ class Us {
         const subPrio = scope.subMetaPrios;
         const subPrioUpg = subPrio["Upgrades"];
         //Upgrade werewolves den
-        if(subPrioUpg.includes("Werewolf Den") == true){
-            if(myBuilds["CastleAndFortresses"].length >= 2 && allWorkers.length > 14 && scope.underAttack == false && myBuilds["Wolves Dens"].length > 3 && myBuilds["Werewolves Dens"].length < 2){
+        if(subPrioUpg.includes("Werewolf Den") === true){
+            if(myBuilds["CastleAndFortresses"].length >= 2 && allWorkers.length > 14 && scope.underAttack === false && myBuilds["Wolves Dens"].length > 3 && myBuilds["Werewolves Dens"].length < 2){
                 if(gold > 225){
                     var den = myBuilds["Wolves Dens"][Randomizer.nextInt(0, myBuilds["Wolves Dens"].length - 1)]
                     scope.order("Upgrade To Werewolves Den", [den]);
@@ -2009,8 +2033,8 @@ class Us {
         }
         
         //Upgrade to fortress
-        if(subPrioUpg.includes("Fortress") == true){
-            if(scope.underAttack == false && myBuilds["Fortresses"].length <= 0){
+        if(subPrioUpg.includes("Fortress") === true){
+            if(scope.underAttack === false && myBuilds["Fortresses"].length <= 0){
                 if(gold >= 100){
                     var castle = myBuilds["Castles"][0];
                     
@@ -2022,8 +2046,8 @@ class Us {
         }
         
         //Fireball research
-        if(subPrioUpg.includes("Fireball") == true){
-            if(scope.underAttack == false && (myBuilds["CastleAndFortresses"].length > 1 || scope.startUnminedMines.length <= 0) && myBuilds["Mages Guilds"].length > 0){
+        if(subPrioUpg.includes("Fireball") === true){
+            if(scope.underAttack === false && (myBuilds["CastleAndFortresses"].length > 1 || scope.startUnminedMines.length <= 0) && myBuilds["Mages Guilds"].length > 0){
                 if(gold >= 100){
                     var guild = myBuilds["Mages Guilds"][0];
                     
@@ -2036,8 +2060,8 @@ class Us {
         }
         
         //Invisibility research
-        if(subPrioUpg.includes("Invisibility") == true){
-            if(scope.underAttack == false && (myBuilds["CastleAndFortresses"].length > 1 || scope.startUnminedMines.length <= 0) && myBuilds["Churches"].length > 0){
+        if(subPrioUpg.includes("Invisibility") === true){
+            if(scope.underAttack === false && (myBuilds["CastleAndFortresses"].length > 1 || scope.startUnminedMines.length <= 0) && myBuilds["Churches"].length > 0){
                 if(gold >= 100){
                     var church = myBuilds["Churches"][0];
                     
@@ -2049,7 +2073,7 @@ class Us {
         }
 
         //Bird Detection research
-        if(subPrioUpg.includes("Bird Detection") == true){
+        if(subPrioUpg.includes("Bird Detection") === true){
             if((myBuilds["CastleAndFortresses"].length > 1 || (scope.startUnminedMines.length <= 0 && myBuilds["CastleAndFortresses"].length > 0))){
                 if(gold >= 100){
                     var preferredCastle = null;
@@ -2064,6 +2088,48 @@ class Us {
                     }
 
                     scope.order("Research Bird Detection", [preferredCastle]);
+                }
+            }
+        }
+
+        //Forge research
+        if(subPrioUpg.includes("Forge") === true){
+            if(scope.underAttack === false && myBuilds["Forges"].length > 0 && (myBuilds["CastleAndFortresses"].length > 1 || (scope.startUnminedMines.length <= 0 && myBuilds["CastleAndFortresses"].length > 0))){
+                if(gold >= 150){
+                    myBuilds["Forges"].forEach(function(forge){
+                        if(forge.getUnitTypeNameInProductionQueAt(1) == undefined){
+                            if(scope.meta === "Barracks"){
+                                if(Randomizer.nextBoolean(0.7)){
+                                    scope.order("Attack Upgrade", [forge]);
+                                }else{
+                                    scope.order("Armor Upgrade", [forge]);
+                                }
+                            }else if(scope.meta === "Mechanical"){
+                                if(Randomizer.nextBoolean(0.6)){
+                                    scope.order("Mech Attack Upgrade", [forge]);
+                                }else{
+                                    scope.order("Mech Armor Upgrade", [forge]);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        //Lab research
+        if(subPrioUpg.includes("Animal Testing Lab") === true){
+            if(scope.underAttack === false && myBuilds["Animal Testing Labs"].length > 0 && (myBuilds["CastleAndFortresses"].length > 1 || (scope.startUnminedMines.length <= 0 && myBuilds["CastleAndFortresses"].length > 0))){
+                if(gold >= 150){
+                    myBuilds["Animal Testing Labs"].forEach(function(lab){
+                        if(lab.getUnitTypeNameInProductionQueAt(1) == undefined){
+                            if(Randomizer.nextBoolean(0.6)){
+                                scope.order("Beast Attack Upgrade", [lab]);
+                            }else{
+                                scope.order("Beast Defense Upgrade", [lab]);
+                            }
+                        }
+                    });
                 }
             }
         }
@@ -2164,37 +2230,39 @@ class Us {
      */
     
     static preventCheese(){
-        if(scope.underAttack == true && fightingUnits.length <= 0 && miningWorkers.length >= 2 && myBuilds["CastleAndFortresses"][0] != undefined){
+        if(scope.underAttack === true && fightingUnits.length <= 0 && miningWorkers.length >= 2 && myBuilds["CastleAndFortresses"][0] != undefined){
             var enemyWorkers = scope.getUnits({type: "Worker", enemyOf: me});
             for(var i = 0; i < enemyWorkers.length; i++){
                 var enemyWorker = enemyWorkers[i];
                 var isNew = true;
                 for(var ii = 0; ii < scope.enemyWorkerScouts.length; ii++){
-                    if(enemyWorker.equals(scope.enemyWorkerScouts[ii]) == true){
+                    if(enemyWorker.equals(scope.enemyWorkerScouts[ii]) === true){
                         isNew = false;
                         ii = scope.enemyWorkerScouts.length;
                     }
                 }
-                if(isNew == true && enemyWorker != undefined && distanceFormula(enemyWorker.getX(), enemyWorker.getY(), myBuilds["CastleAndFortresses"][0].getX(), myBuilds["CastleAndFortresses"][0].getY()) < 20){
+                if(isNew === true && enemyWorker != undefined && distanceFormula(enemyWorker.getX(), enemyWorker.getY(), myBuilds["CastleAndFortresses"][0].getX(), myBuilds["CastleAndFortresses"][0].getY()) < 20){
                     scope.enemyWorkerScouts.push(enemyWorker);
                     scope.order("AMove", [miningWorkers[0], miningWorkers[1]], {x: enemyWorker.getX(), y: enemyWorker.getY()})
                 }
             }
         }//Counters worker scouts
         
-        var myAngryWorkers = scope.getUnits({type: "Worker", order: "AMove", player: me});
-        //If we have any counter-worker scouts
-        if(myAngryWorkers.length > 0){
-            if(myBuilds["CastleAndFortresses"].length > 0){//If we still have a castle
-                myAngryWorkers.forEach(function(worker){
-                    if(scope.workerScout == undefined || worker.equals(scope.workerScout) == false){
-                        if(distanceFormula(worker.getX(), worker.getY(), myBuilds["CastleAndFortresses"][0].getX() + 2, myBuilds["CastleAndFortresses"][0].getY() + 2) > 14){
-                            scope.order("Moveto", [worker], {unit: myBuilds["CastleAndFortresses"][0]});
-                            scope.enemyWorkerScouts = [];//removes all known worker scouts from the array,
-                            //so that if they come back they will be readded and workers dispatched.
+        if(time < 180 && fightingUnits.length <= 1){
+            var myAngryWorkers = scope.getUnits({type: "Worker", order: "AMove", player: me});
+            //If we have any counter-worker scouts
+            if(myAngryWorkers.length > 0){
+                if(myBuilds["CastleAndFortresses"].length > 0){//If we still have a castle
+                    myAngryWorkers.forEach(function(worker){
+                        if(scope.workerScout === undefined || worker.equals(scope.workerScout) === false){
+                            if(distanceFormula(worker.getX(), worker.getY(), myBuilds["CastleAndFortresses"][0].getX() + 2, myBuilds["CastleAndFortresses"][0].getY() + 2) > 14){
+                                scope.order("Moveto", [worker], {unit: myBuilds["CastleAndFortresses"][0]});
+                                scope.enemyWorkerScouts = [];//removes all known worker scouts from the array,
+                                //so that if they come back they will be readded and workers dispatched.
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
         }
         
@@ -2206,7 +2274,7 @@ class Us {
                     
                     const ordered = getClosestTo(possibles, {x: building.getX(), y: building.getY()});
                     if(ordered != null){
-                        scope.order("Move", [ordered], {x: building.getX(), y: building.getY()});
+                        scope.order("Moveto", [ordered], building);
                     }
                 }
             })
@@ -2224,7 +2292,7 @@ class Us {
         for(var i = 0; i < enemyUnits.length; i++){
             var unit = enemyUnits[i];
             
-            if((unit.getTypeName() == "Dragon" || unit.getTypeName() == "Gyrocraft") && scope.subMetaPrios["Units"].includes("Ballista") == false){
+            if((unit.getTypeName() === "Dragon" || unit.getTypeName() === "Gyrocraft") && scope.subMetaPrios["Units"].includes("Ballista") === false){
                 scope.subMetaPrios["Buildings"].push("Advanced Workshop");
                 scope.subMetaPrios["Units"].push("Ballista");
                 if(scope.meta != "Mechanical"){
@@ -2288,7 +2356,7 @@ class Us {
                 }
                 var possible = possibleCast[Randomizer.nextInt(0, possibleCast.length - 1)];
 
-                if((possible == "Heal" && priest.getValue("mana") < 25) || (possible == "Invis" && priest.getValue("mana") < 50)){
+                if((possible === "Heal" && priest.getValue("mana") < 25) || (possible === "Invis" && priest.getValue("mana") < 50)){
                     continue;//If the mage does not have enough mana for the spell, don't waste CPU resources cacluating useless values
                 }
                 var nearAllies = [];
@@ -2300,7 +2368,7 @@ class Us {
                 });
 
                 if(nearAllies.length > 0){
-                    if(possible == "Invis"){
+                    if(possible === "Invis"){
                         const target = nearAllies[Randomizer.nextInt(0, nearAllies.length - 1)];
                         scope.order("Invisibility", [priest], {unit: target});
                     }else{
@@ -2341,7 +2409,7 @@ class Us {
      * Deploys, retreats, and does other things with birds
      */
     static useBirds(){
-        if(myUnits["Bird"] == undefined || enemyFightingUnits.length <= 0){
+        if(myUnits["Bird"] === undefined || enemyFightingUnits.length <= 0){
             return;
         }
 
@@ -2353,10 +2421,88 @@ class Us {
                 var acceptable = scope.getUnits({notOfType: "Worker", player: me, order: "AMove"});
                 var closest = getClosestTo(acceptable, {x: bird.getX(), y: bird.getY()});
                 if(closest != null){
-                    scope.order("Move", {x: closest.getX(), y: closest.getY()});
+                    scope.order("Move", [bird], {x: closest.getX(), y: closest.getY()});
                 }
             }
         });
+    }
+
+    /**
+     * Orders a worker rush.
+     * 
+     * @param coords - where the workers should rush to.
+     * @param dist - how close the worker has to be to the coordinates in order to rush, exclusive.
+     * @param max - the maximum amount of workers that will rush, inclusive
+     */
+    static workerRush(coords, dist, max){
+        //scope.chatMsg(JSON.stringify(coords) + ", " + dist + ", " + max);
+        let reassigned = 0;
+        for(var i = 0; i < allWorkers.length; i++){
+            var worker = allWorkers[i];
+            if(distanceFormula(coords.x, coords.y, worker.getX(), worker.getY()) < dist){
+                scope.order("AMove", [worker], coords);
+                reassigned++;
+            }
+            if(reassigned >= max){
+                break;
+            }
+        }
+    }
+
+    static switchSubMeta(){
+
+        if(scope.switched === true || myBuilds["CastleAndFortresses"].length <= 2){
+            return;
+        }//Switch when there are 3 castles to a more advanced build
+
+        scope.switched = true;
+
+        var oldSubMeta = scope.subMeta;
+        while(true){
+            scope.subMeta = scope.allSubMetas[scope.meta][Randomizer.nextInt(0, scope.allSubMetas[scope.meta].length - 1)];//fetches a submeta
+            if(scope.subMeta != oldSubMeta){
+                break;
+            }
+        }
+        /*
+           "Balanced": {
+                "Buildings": ["Barracks"],
+                "Units": ["Soldier", "Archer", "Raider"],
+                "Upgrades": ["Forge"],
+                "Misc": {"attackThreshold": 1.8, "maxProducers": 4, "opener": true},
+            },
+         */
+        var oldPrios = scope.subMetaPrios;
+        scope.subMetaPrios = scope.allSubMetaPrios[scope.meta][scope.subMeta];
+        scope.subMetaPrios["Units"].concat(oldPrios["Units"]);
+        if(myBuilds.combatUnitProducers.length >= oldPrios["Misc"].maxProducers){
+            scope.subMetaPrios["Misc"].maxProducers += Math.ceil(scope.subMetaPrios["Misc"].maxProducers / 2);
+        }
+
+        var alreadyNamed = [];
+        for(var i = scope.subMetaPrios["Units"].length - 1; i > -1; i--){
+            let name = scope.subMetaPrios["Units"][i];
+            if(alreadyNamed.includes(name)){
+                scope.subMetaPrios["Units"].splice(i, 1);
+            }else{
+                alreadyNamed.push(name);
+            }
+        }//Removes duplicates
+
+        //scope.chatMsg(JSON.stringify(scope.subMetaPrios["Units"]));
+
+        scope.attackThreshold = scope.subMetaPrios["Misc"].attackThreshold;
+        scope.unitProducerCap = scope.subMetaPrios["Misc"].maxProducers;
+
+        if(scope.subMeta === "DragonSpamRush" || scope.subMeta === "GyrocraftSpam"){
+            scope.unitPower["Ballista"] = 3;
+            scope.unitPower["Archer"] = 1.2;
+            scope.unitPower["Soldier"] = 0.5;
+            scope.unitPower["Werewolf"] = 1;
+            scope.unitPower["Catapult"] = 1;
+            scope.unitPower["Snake"] = 0.6;
+            scope.unitPower["Wolf"] = 0.4;
+        }
     }
 }
 /**
@@ -2391,6 +2537,7 @@ class Base {
         var centerY = this.nearestMine.getY() + 1;
         
         var castle = new RandBuild({building: "Castle", "centerX": centerX, "centerY": centerY});
+        castle.pad = 0;
         castle.minDisFromCenter = 6;
         castle.buildRad = 11;
         castle.tryTheseFirst = [[6, -2], [-6, -2], [-2, 6], [-2, -7]];
@@ -2559,48 +2706,10 @@ if(scope.bases.length <= 0){
         //Sometimes because of LWG magic, startLocation will return undefined. In that case,
         //the bot will default to the first castle's coordinates.
     }
-    if(typeof startLoc == "object"){
+    if(typeof startLoc === "object"){
         var base = new Base(startLoc.x + 2, startLoc.y + 2);
     }
 }
-
-/*
-if(time > 3){
-    var unpathableToPathable = scope.getGroundDistance(myBuilds["CastleAndFortresses"][0].getX() + 1, myBuilds["CastleAndFortresses"][0].getY() + 1, miningWorkers[0].getX(), miningWorkers[0].getY());
-    var pathableToPathable = scope.getGroundDistance(miningWorkers[3].getX(), miningWorkers[3].getY(), miningWorkers[0].getX(), miningWorkers[0].getY());
-    var unpathableToUnpathable = scope.getGroundDistance(myBuilds["CastleAndFortresses"][0].getX() + 1, myBuilds["CastleAndFortresses"][0].getY() + 1, goldmines[0].getX() + 1, goldmines[0].getY() + 1);
-
-    scope.chatMsg("unpathableToPathable: " + JSON.stringify(unpathableToPathable) + ", pathableToPathable: " + JSON.stringify(pathableToPathable) + ", unpathableToUnpathable: " + JSON.stringify(unpathableToUnpathable));
-}*/
-
-/*
-if(time < 10){
-    var stringDists = [];
-    var numDists = [];
-    var badGoldmines = [];
-    goldmines.forEach(function(mine){
-        var dist = scope.getGroundDistance(mine.getX(), mine.getY(), myBuilds["CastleAndFortresses"][0].getX(), myBuilds["CastleAndFortresses"][0].getY());
-        if(dist != null){
-            dist = Math.round(dist);
-        }
-        stringDists.push(" " + JSON.stringify(dist));
-        numDists.push(dist);
-        if(dist == 1){
-            badGoldmines.push(mine);
-        }
-    });
-    //scope.chatMsg(JSON.stringify(stringDists));
-    badGoldmines.forEach(function(mine){
-        if(miningWorkers[3] != undefined){
-            var doShift = true;
-            if(miningWorkers[3].getCurrentOrderName() == "Mine"){
-                scope.order("Move", [miningWorkers[3]], {x: mine.getX(), y: mine.getY()});
-            }else{
-                scope.order("Move", [miningWorkers[3]], {x: mine.getX(), y: mine.getY()}, {"shift": doShift});
-            }
-        }
-    });
-}*/
 
 /**
  * Kites with units. THIS IS ONLY A SINGLE CYCLE!!! Calling this function will
@@ -2647,7 +2756,7 @@ function allAttack(){
  * @param {string} chatThis - what the bot should say.
  */
 function botChat(chatThis){
-    if(scope.mute == false){
+    if(scope.mute === false){
         var color = getMyColor();
         scope.chatMsg(color + ": " + chatThis); 
     }
@@ -2655,22 +2764,22 @@ function botChat(chatThis){
 
 function getMyColor(){
     var color;
-    if(me == 1){
+    if(me === 1){
 		color = "Red"
 	}
-	if(me == 2){
+	if(me === 2){
 		color = "Blue"
 	}
-	if(me == 3){
+	if(me === 3){
 		color = "Green"
 	}
-	if(me == 4){
+	if(me === 4){
 		color = "White"
 	}
-	if(me == 5){
+	if(me === 5){
 		color = "Black"
 	}
-	if(me == 6){
+	if(me === 6){
 		color = "Yellow"
 	}
 	return color;
@@ -2705,7 +2814,7 @@ function doBotChat(){
  */
 function filterDontProducers(){
     for(var i = myBuilds.combatUnitProducers.length - 1; i > -1; i--){
-        if(scope.dontProduceFromThese.has(myBuilds.combatUnitProducers[i].getTypeName()) == true){
+        if(scope.dontProduceFromThese.has(myBuilds.combatUnitProducers[i].getTypeName()) === true){
             myBuilds.combatUnitProducers.splice(i, 1);
         }
     }//runs backwards to ensure that holes in the array don't interfere with the accuracy of the index.
@@ -2728,13 +2837,7 @@ function armyBrain(){
             opfor += scope.getPowerOf(unit);
         }
     }
-    var myPower = 0;
-    for(var i = 0; i < fightingUnits.length; i++){
-        var unit = fightingUnits[i];
-        if(unit != undefined && unit.getCurrentHP() > 0){
-            myPower += scope.getPowerOf(unit);
-        }
-    }
+    var myPower = scope.myPower
     
     //if the enemy is 25 percent more powerful - run away.
     //if we are slightly outmatched, have very few units, or
@@ -2742,7 +2845,7 @@ function armyBrain(){
     var enemyCatas = [];
     var catasPresent = false;
     enemyUnits.forEach(function(e){
-        if(e.getTypeName() == "Catapult"){
+        if(e.getTypeName() === "Catapult"){
             catasPresent = true;
             enemyCatas.push(e);
         }
@@ -2750,11 +2853,11 @@ function armyBrain(){
 
     const enemyMeleePercent = enemyMelee.length / enemyFightingUnits.length;
     const myMeleePercent = myMelee.length / fightingUnits.length;
-    var kiteThreshold = myPower * 0.9;
-    var retreatThreshold = myPower * 1.2;
-    if(scope.underAttack == true){
-        kiteThreshold = myPower * 1.1;
-        retreatThreshold = myPower * 1.4;
+    var kiteThreshold = myPower * 1.05;
+    var retreatThreshold = myPower * 1.15;
+    if(scope.underAttack === true){
+        kiteThreshold = myPower * 1.15;
+        retreatThreshold = myPower * 1.45;
     }//Will more agressively defend than attack
     
     if(opfor > 0 && (opfor > kiteThreshold || enemyCatas.length > 0 || (enemyUnits.length > 3 && myMeleePercent < 0.4))){//If the enemy is passes the kiting requirements
@@ -2763,7 +2866,7 @@ function armyBrain(){
             var shortKitingUnits = [];
             
             var rangeFilter = false;
-            if(catasPresent == true || enemyMeleePercent < 0.6){
+            if(catasPresent === true || enemyMeleePercent < 0.6){
                 rangeFilter = true;
             }//if the unit is not short-ranged or melee(0.2), 
             //push it into the kiting array. We don't want
@@ -2779,21 +2882,21 @@ function armyBrain(){
             fightingUnits.forEach(function(unit){
                 var isGood = true;
                 var isFar = false;
-                if(rangeFilter == true){
+                if(rangeFilter === true){
                     if(unit.getFieldValue("range") < 1){
                         isGood = false;
                     }
                 }//If the range filtier is on and the unit is short-ranged,
                 //don't kite.
 
-                if(distanceFormula(center.x, center.y, unit.getX(), unit.getY()) > 10){
+                if(distanceFormula(center.x, center.y, unit.getX(), unit.getY()) > 7){
                     isGood = false;
                     isFar = true;
                 }//If the units are outside of the main melee (such as 
                 //reinforcements), don't kite.
-                if(isGood == true){
+                if(isGood === true){
                     kitingUnits.push(unit);
-                }else if(isFar == false){
+                }else if(isFar === false){
                     shortKitingUnits.push(unit);
                 }
             });
@@ -2806,7 +2909,7 @@ function armyBrain(){
             }
         }else{
             //Retreat if outmatched
-            if(scope.trainingModeOn == true && scope.underAttack == false && scope.firstBeatMessageSent == undefined){
+            if(scope.trainingModeOn === true && scope.underAttack === false && scope.firstBeatMessageSent == undefined){
                 //Gives encouragement for the player if they beat the first attack.
                 scope.firstBeatMessageSent = true;
                 scope.chatMsg("Nice, you beat my first attack!");
@@ -2826,7 +2929,7 @@ function armyBrain(){
 
             if(scope.workerScout.getCurrentHP() < scope.workerScout.getFieldValue("hp") * 0.25){
                 exfil([scope.workerScout]);
-                if(scope.trainingModeOn == true){
+                if(scope.trainingModeOn === true){
                     scope.chatMsg("Congratulations! You beat my worker scout!");
                 }
                 scope.workerScout = undefined;//makes sure the worker doesn't try any funny buisness anymore
@@ -2838,7 +2941,7 @@ function armyBrain(){
                         break;
                     }
                 }
-                if(isClose == true){
+                if(isClose === true){
                     kite([scope.workerScout]);
                 }
             }//If there is opposition and the enemy workers are close, kite. If the
@@ -2879,14 +2982,14 @@ function armyBrain(){
                     //repair squad
                     if(proposedWorker != undefined){
                         for(var i = 0; i < scope.mechRepairSquad.length; i++){
-                            if(proposedWorker.equals(scope.mechRepairSquad[i]) == true){
+                            if(proposedWorker.equals(scope.mechRepairSquad[i]) === true){
                                 isGood = false;
                                 i = scope.mechRepairSquad.length;
                             }
                         }
                     }
 
-                    if(isGood == true){
+                    if(isGood === true){
                         scope.mechRepairSquad.push(proposedWorker);
                         break;
                     }
@@ -2928,7 +3031,7 @@ function armyBrain(){
                         repairOrders++;
 
                         for(var ii = 0; ii < unassignedRepairers.length; ii++){
-                            if(repairer.equals(unassignedRepairers[ii]) == true){
+                            if(repairer.equals(unassignedRepairers[ii]) === true){
                                 unassignedRepairers.splice(ii, 1);
                                 ii = unassignedRepairers.length + 1;
                             }
@@ -2949,7 +3052,7 @@ function armyBrain(){
             
             var angryMechs = [];
             myMechUnits.forEach(function(mech){
-                if(mech.getCurrentOrderName() == "AMove"){
+                if(mech.getCurrentOrderName() === "AMove"){
                     angryMechs.push(mech);
                 }
             });
@@ -3028,7 +3131,7 @@ function getClosestTo(arr, coordinates){
  */
 
 function exfil(units){
-    if(units.length <= 0 || scope.canRetreat == false || myBuilds["allBuilds"].length <= 0){
+    if(units.length <= 0 || scope.canRetreat === false || myBuilds["allBuilds"].length <= 0){
         return;
     }
     var chatLine;
@@ -3058,7 +3161,7 @@ function exfil(units){
         return;
     }
     
-    if(scope.mute == false && Randomizer.nextBoolean(0.2) == true){
+    if(scope.mute === false && Randomizer.nextBoolean(0.2) === true){
         var possibleChat = ["I'm not retreating! I'm just moving rapidly in the opposite direction!",
         "The needs of the few outweigh the needs of the many.", "The needs of the many outweigh the needs of the few.", "The needs of the any outweight the needs of the ew.", "It only becomes running away when you stop shooting/stabbing/otherwise killing back",
         "Dinner time!", "Ahhhhh!", "Nice move", "Hey! Shooting retreating enemies is a war crime, you know? Sheesh.", "Don't we all love running?", "He who retreats lives slightly longer before he is executed for cowardince", "Discretion is the better part of valor.",
@@ -3129,7 +3232,7 @@ function getMyMinedMines(){
             }
         }
         
-        if(isUnmined == false){
+        if(isUnmined === false){
             minedMines.push(mine);
         }
     }
@@ -3186,7 +3289,7 @@ function getUnminedMines(){
             }
         }
         
-        if(isUnmined == true){
+        if(isUnmined === true){
             unminedMines.push(mine);
         }
     }
@@ -3273,7 +3376,7 @@ function findRandomPrioKey(obj){
     }//if there is nothing prioritized - return.
     
     var randomNum = 0;
-    while(randomNum == 0){
+    while(randomNum === 0){
         randomNum = Math.round((Math.random() * (max - min) + min) * 100) / 100;
     }
     var lastNum = 0;
@@ -3328,7 +3431,7 @@ function trainUnit(unit, amount = Infinity){
             if(i >= amount){
                 break;
             }
-            if(unit == "Ballista" || unit == "Airship" || unit == "Catapult" || unit == "Gatling Gun" || unit == "Gyrocraft"){
+            if(unit === "Ballista" || unit === "Airship" || unit === "Catapult" || unit === "Gatling Gun" || unit === "Gyrocraft"){
                 scope.order("Construct " + unit, [productionBuildings[i]]);
             }else{
                 scope.order("Train " + unit, [productionBuildings[i]]);
