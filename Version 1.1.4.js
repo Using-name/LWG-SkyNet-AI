@@ -978,7 +978,7 @@ class Us {
             doBotChat();
         }
         
-        scope.chatMsg("We are at time " + time + ", and the next talk tick is " + scope.nextTalkTick)
+        //scope.chatMsg("We are at time " + time + ", and the next talk tick is " + scope.nextTalkTick)
 
         let myPower = 0; 
 
@@ -3552,7 +3552,7 @@ class Army {
                 }else{
                     let firstUnit = ship.getValue("cargo")[0];
                     if(firstUnit != undefined && isEnemyAroundBuilding(ship) == true && firstUnit.hp >= firstUnit.type.hp * 0.5){
-                        scope.chatMsg("Attempting to unload.");
+                        //scope.chatMsg("Attempting to unload.");
                         scope.order("Unload", [ship], {x: ship.getX(), y: ship.getY()});
                     }
                 }
@@ -3702,7 +3702,7 @@ class Grid {
             }
             SENTINEL++;
             if(SENTINEL > 10000){
-                scope.chatMsg("ERROR: The pathfinding operation took too long!");
+                //scope.chatMsg("ERROR: The pathfinding operation took too long!");
             }
 
             let neighbors = this.getNeighbors(node);
