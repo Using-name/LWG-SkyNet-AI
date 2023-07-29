@@ -130,13 +130,7 @@ class Randomizer {
      * @returns {number} Random number between low and high, inclusive.
     */
     static nextInt(low, high){
-        if(typeof high === "undefined"){
-            high = low - 1;
-            low = 0;
-        }
-        low = Math.floor(low);
-        let r = Math.random();
-        return low + Math.floor(r * (high - low + 1));
+        return scope.getRandomNumber(Math.floor(low), Math.floor(high));
     };
     /**
      * Get a random float between low to high, inclusive.
@@ -144,26 +138,22 @@ class Randomizer {
      * from (0, low-1) inclusive.
      * @param {number} low - Lower bound on range of random int.
      * @param {number} high - Upper bound on range of random int.
-     * @returns {number} Random number between low and high, inclusive.
+     * @returns {number} Random number between low and high, inclusive. Up to 6 digits total.
     */
     static nextFloat(low, high){
-        if(typeof high === "undefined"){
-            high = low;
-            low = 0;
-        }
-        return low + (high - low) * Math.random();
+        return scope.getRandomNumber(low * 100000, high * 100000) / 100000;
     };
     /**
      * Generate a random boolean via fair probability coin toss.
      * If `probabilityTrue` is supplied, the coin toss is skewed by that value.
      * @param {number} probabilityTrue - Skewed probability of true.
-     * @returns {boolean} Result of coin flip skewed toward `probabilityTrue`.
+     * @returns {boolean} Result of coin flip skewed toward `probabilityTrue`. 
     */
     static nextBoolean(probabilityTrue){
         if(typeof probabilityTrue === "undefined"){
             probabilityTrue = 0.5;
         }
-        return Math.random() < probabilityTrue;
+        return scope.getRandomNumber(0, 10000) < probabilityTrue * 10000;
     };
 }
 
@@ -465,11 +455,13 @@ if(!scope.initailized){
     scope.mechRepairSquad = [];
     
     scope.trainingModeOn = false;
+	/*
     if(scope.trainingModeOn === true){
         scope.mute = true;
     }else{
         scope.mute = false;
-    }
+    }*/
+    scope.mute = true;
 
     scope.firstCastle = myBuilds["CastleAndFortresses"][0];
 
@@ -2451,15 +2443,6 @@ class Us {
                         target = {x: enemyTarget.getX(), y: enemyTarget.getY()};
                     }
                     scope.order("Fireball", [mage], target);
-                    if(Randomizer.nextBoolean(0.1)){
-                        let possibleChat = ["Kaa...meee...haaa...meee...HAAAA", "You.. Shall.. Not... PASSS!", "SPECIAL BEAM CANNON!",
-                                            "Now witness the power of this fully armed and operational gas station!", "Now witness the power of this fully armed and operational power substation!",
-                                            "If firemen put out fires, then I guess I'm a waterman?", "Eat that!", "Take that!", "Ka-chow!",
-                                            "Ka-pow!", "Oooh... burn!", "You just got roasted", "Aren't you looking hot today", "Can you take the heat?",
-                                            "I would like some enemy soldiers, medium-rare please.", "Burn, burn, burn", "Open fire!", "Pew pew pew",
-                                            "Kaboom"];
-                        scope.chatMsg(possibleChat[Randomizer.nextInt(0, possibleChat.length - 1)])
-                    }
                     fireballsLaunched++;
         		}
     	    }
@@ -4178,23 +4161,6 @@ function exfil(units){
     
     if(distanceFormula(center.x, center.y, retreatBuilding.getX() + 2, retreatBuilding.getY() + 2) <= 9){
         return;
-    }
-    
-    if(scope.mute === false && Randomizer.nextBoolean(0.1) === true){
-        let possibleChat = ["I'm not retreating! I'm just moving rapidly in the opposite direction!",
-        "The needs of the few outweigh the needs of the many.", "The needs of the many outweigh the needs of the few.", "The needs of the any outweight the needs of the ew.", "It only becomes running away when you stop shooting/stabbing/otherwise killing back",
-        "Dinner time!", "Ahhhhh!", "Nice move", "Hey! Shooting retreating enemies is a war crime, you know? Sheesh.", "Don't we all love running?", "He who retreats lives slightly longer before he is executed for cowardince", "Discretion is the better part of valor.",
-        "Retreat! Ha! We're just rapidly advancing in the opposite direction!", "In this army, it takes more courage to retreat than to advance. Because deserters and retreating troops are execut-", "Fall back!", 
-        "Well, we can make our last stand over there just as well as over here.", "Blood makes the grass grow and we make the blood flow!", "I'll get you for this!", "lol", "THIS... IS... LITTLE WAR GAME!!!!", "They're everywhere!", "Uh oh", 
-        "All roads lead to Retreat.", "Over there! No, over there! No, over there!", "This is like herding cats", "We came in peace?", "I'll be back!",";)", ":)", ":(", ");", ":0", "Dude... not cool.", "meow", "Don't hurt me!",
-        "Who are you... where do you come from... what do you want to do with your life.", "This is a distracting message.", "I know what you did", "Ohhh", "I'm sorry", "I have failed", "I'm a disgrace", "Darn...", "Go take a toaster bath",
-        "You're a disgrace", "You disgust me", "A weak attempt.", "Come on, really?", "No way.", "No way!", "Bro...", "Run away!", "Bruh", "Mmm", "Ah", "Ahhh", "Ahhhhhhh", "Ahhhhhhh", "This is unfortunate.", "Your shoes are untied", "Your head is unscrewed",
-        "Pathetic.", "I have a surprise fr you...", "Impossible...", "Crap", "Crud", "Dang", "Shoot", "Yeowch", "What the...", "Oh fudge", "fudge", "Fudge fudge fudge", "This is unacceptable.", "I want to speak to the manager", "Ha",
-        "Haha", "Hahaha", "haha", "hahahaha", "hah", "huh?", "*cough*", "You're nothing but a bully.", "Sticks and stones may break my bones but you will never hurt me.", "Go to the underworld.", "That's the worst pirate I've ever seen.",
-        "Perhaps I can find new ways to... motivate the troops.", "Retreating is unacceptable.", "Tactical withdrawl is not retreating.", "Desertion is the better part of valor.", "For the motherland!", "Go away", "O rly?",
-        "We're not gonna take this!", "A pledge pin?", "Oh you and your uniform", "We've got the right to choose", "This is our life", "It's my life", "Another one bites the dust"];
-        chatLine = possibleChat[Randomizer.nextInt(0, possibleChat.length - 1)];
-        scope.chatMsg(getMyColor() + ": " + chatLine);
     }
     
     scope.order("Moveto", units, {unit: retreatBuilding});//orders a retreat to the main base
