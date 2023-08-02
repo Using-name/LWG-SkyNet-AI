@@ -130,7 +130,7 @@ class Randomizer {
      * @returns {number} Random number between low and high, inclusive.
     */
     static nextInt(low, high){
-        return scope.getRandomNumber(Math.floor(low), Math.floor(high));
+        return Math.round(scope.getRandomNumber(low, high));
     };
     /**
      * Get a random float between low to high, inclusive.
@@ -141,7 +141,7 @@ class Randomizer {
      * @returns {number} Random number between low and high, inclusive. Up to 6 digits total.
     */
     static nextFloat(low, high){
-        return scope.getRandomNumber(low * 100000, high * 100000) / 100000;
+        return scope.getRandomNumber(low, high);
     };
     /**
      * Generate a random boolean via fair probability coin toss.
@@ -153,7 +153,7 @@ class Randomizer {
         if(typeof probabilityTrue === "undefined"){
             probabilityTrue = 0.5;
         }
-        return scope.getRandomNumber(0, 10000) < probabilityTrue * 10000;
+        return scope.getRandomNumber(0, 1) < probabilityTrue;
     };
 }
 
