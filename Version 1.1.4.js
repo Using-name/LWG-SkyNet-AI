@@ -117,6 +117,9 @@ let combatUnitProducerToCastleRatio = myBuilds.combatUnitProducers.length / (sco
 /**
  * Gets random numbers. See methods inside for details.
  */
+/**
+ * Gets random numbers. See methods inside for details.
+ */
 class Randomizer {
     //CREDIT GOES TO @Jermy Keeshin at CodeHS
     
@@ -130,7 +133,14 @@ class Randomizer {
      * @returns {number} Random number between low and high, inclusive.
     */
     static nextInt(low, high){
-        return Math.round(scope.getRandomNumber(low, high));
+        if(typeof high === "undefined"){
+            high = low - 1;
+            low = 0;
+        }
+        low = Math.floor(low);
+        //let r = new Math.seedrandom(scope.getMyAISeed());
+        let r = Math.random();
+        return low + Math.floor(r * (high - low + 1));
     };
     /**
      * Get a random float between low to high, inclusive.
@@ -138,22 +148,28 @@ class Randomizer {
      * from (0, low-1) inclusive.
      * @param {number} low - Lower bound on range of random int.
      * @param {number} high - Upper bound on range of random int.
-     * @returns {number} Random number between low and high, inclusive. Up to 6 digits total.
+     * @returns {number} Random number between low and high, inclusive.
     */
     static nextFloat(low, high){
-        return scope.getRandomNumber(low, high);
+        if(typeof high === "undefined"){
+            high = low;
+            low = 0;
+        }
+        //return low + (high - low) * new Math.seedrandom(scope.getMyAISeed());
+        return low + (high - low) * Math.random();
     };
     /**
      * Generate a random boolean via fair probability coin toss.
      * If `probabilityTrue` is supplied, the coin toss is skewed by that value.
      * @param {number} probabilityTrue - Skewed probability of true.
-     * @returns {boolean} Result of coin flip skewed toward `probabilityTrue`. 
+     * @returns {boolean} Result of coin flip skewed toward `probabilityTrue`.
     */
     static nextBoolean(probabilityTrue){
         if(typeof probabilityTrue === "undefined"){
             probabilityTrue = 0.5;
         }
-        return scope.getRandomNumber(0, 1) < probabilityTrue;
+        //return new Math.seedrandom(scope.getMyAISeed()) < probabilityTrue;
+        return Math.random() < probabilityTrue;
     };
 }
 
