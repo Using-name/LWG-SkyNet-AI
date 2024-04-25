@@ -1171,9 +1171,8 @@ if(!scope.initailized){
     if(scope.baseMeta == "Mechanical"){
         Randomizer.nextBoolean(0.5) ? scope.meta += "Barracks" : scope.meta += "Beast";
     }
-    
     //Put your own custom build order HERE!!
-    scope.buildOrder = [["House"], ["Worker"], ["Workshop"], ["Worker", 2], ["Gatling Gun", 2], ["Castle"], ["Advanced Workshop"], ["Worker"], ["House"], ["Catapult"], ["Airship"], ["Worker", 2], ["Catapult", 1], ["House", 1], ["Attack"], ["Worker", 2], ["Catapult"], ["Airship"], ["Worker", 2], ["Catapult"], ["Attack"], ["Airship"], ["Worker", 2], ["House"], ["Catapult"], ["Castle"]];
+    scope.buildOrder = [{name: "5-gat"}, ["House"], ["Worker"], ["Workshop"], ["Worker", 2], ["Gatling Gun", 2], ["Castle"], ["Advanced Workshop"], ["Worker"], ["House"], ["Catapult"], ["Airship"], ["Worker", 2], ["Catapult", 1], ["House", 1], ["Worker", 2], ["Catapult"], ["Airship"], ["Worker", 2], ["Catapult"], ["Airship"], ["Worker", 2], ["House"], ["Catapult"], ["Castle"]];
     
     //If we start out with more stuff than normal, are in an FFA,or have more than 1 close goldmine, cancel the build order
     if(scope.getUnits({player: me}) > 7 || myBuilds["CastleAndFortresses"].length > 1 || (scope.numAllies == 0 && scope.numEnemies > 1) || goldmines.filter(mine => distanceFormula(mine.getX() + 1, mine.getY() + 1, myBuilds["CastleAndFortresses"][0].getX() + 1.5, myBuilds["CastleAndFortresses"][0].getY() + 1.5) < 12).length > 1){
@@ -1747,7 +1746,7 @@ class RandBuild {
                 }else{
                     //blue
                     if(scope.positionIsPathable(82, 102)){
-                        this.buildAt({x: 84, y: 105});
+                        this.buildAt({x: 82, y: 102});
                     }else{
                         return false;
                     }
